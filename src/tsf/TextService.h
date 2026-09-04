@@ -10,7 +10,9 @@ class TextService final : public ITfTextInputProcessorEx,
                           public ITfCompositionSink,
                           public ITfThreadMgrEventSink,
                           public ITfThreadFocusSink,
-                          public ITfActiveLanguageProfileNotifySink {
+                          public ITfActiveLanguageProfileNotifySink,
+                          public ITfTextEditSink,
+                          public ITfCompartmentEventSink {
  public:
   TextService();
   ~TextService();
@@ -37,13 +39,16 @@ class TextService final : public ITfTextInputProcessorEx,
   STDMETHODIMP OnSetThreadFocus() override;
   STDMETHODIMP OnKillThreadFocus() override;
   STDMETHODIMP OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) override;
+  STDMETHODIMP OnEndEdit(ITfContext* context, TfEditCookie readOnlyCookie, ITfEditRecord* editRecord) override;
+  STDMETHODIMP OnChange(REFGUID guid) override;
 
   HRESULT ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commitOnly);
 
  private:
   HRESULT AdviseSinks();
-  HRESULT EnsureKeyEventSinkForeground();
-  HRESULT SetKeyboardOpen(bool open);
+  HRESULT AdviseFocusedContext(ITfDocumentMgr* document);
+  HRESULT AdviseKeyboardOpenCompartment();
+  void UnadviseFocusedContext();
   void UnadviseSinks();
   bool ShouldEatKey(ITfContext* context, WPARAM key) const;
   bool IsContextWritable(ITfContext* context) const;
@@ -58,6 +63,11 @@ class TextService final : public ITfTextInputProcessorEx,
   DWORD threadSinkCookie_{TF_INVALID_COOKIE};
   DWORD threadFocusSinkCookie_{TF_INVALID_COOKIE};
   DWORD profileSinkCookie_{TF_INVALID_COOKIE};
+  DWORD textEditSinkCookie_{TF_INVALID_COOKIE};
+  DWORD keyboardOpenSinkCookie_{TF_INVALID_COOKIE};
+  ITfContext* textEditContext_{};
+  ITfCompartment* keyboardOpenCompartment_{};
+  bool keyboardOpen_{true};
   ITfComposition* composition_{};
   akshara::AksharaEngine engine_;
   akshara::CompositionBuffer buffer_{akshara::InputMode::SmartPhonetic};

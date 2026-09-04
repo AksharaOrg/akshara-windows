@@ -7,6 +7,15 @@ using RegistrationFunction = HRESULT(__stdcall*)();
 using InstallLayoutOrTipFunction = BOOL(WINAPI*)(LPCWSTR, DWORD);
 
 namespace {
+int ClearDiagnosticsLog() {
+  wchar_t localAppData[MAX_PATH]{};
+  const auto length = GetEnvironmentVariableW(L"LOCALAPPDATA", localAppData, _countof(localAppData));
+  if (!length || length >= _countof(localAppData)) return ERROR_SUCCESS;
+  const std::wstring path = std::wstring(localAppData, length) + L"\\Akshara\\tsf-diagnostics.log";
+  if (DeleteFileW(path.c_str()) || GetLastError() == ERROR_FILE_NOT_FOUND) return ERROR_SUCCESS;
+  return static_cast<int>(GetLastError());
+}
+
 int EnableProfile(std::wstring_view name) {
   const wchar_t* profile = nullptr;
   if (name == L"smart") {
@@ -44,8 +53,10 @@ int wmain(int argc, wchar_t** argv) {
     return SUCCEEDED(hr) ? ERROR_SUCCESS : static_cast<int>(HRESULT_CODE(hr));
   }
   if (argc == 3 && std::wstring_view(argv[1]) == L"enable") return EnableProfile(argv[2]);
+  if (argc == 2 && std::wstring_view(argv[1]) == L"clear-log") return ClearDiagnosticsLog();
 
   std::wcerr << L"Usage: AksharaRegister.exe <install|uninstall> <absolute-dll-path>\n"
-                L"       AksharaRegister.exe enable <smart|phonetic|wijesekara>\n";
+                L"       AksharaRegister.exe enable <smart|phonetic|wijesekara>\n"
+                L"       AksharaRegister.exe clear-log\n";
     return ERROR_INVALID_PARAMETER;
 }

@@ -64,6 +64,8 @@ HRESULT TextService::QueryInterface(REFIID riid, void** object) {
   else if (riid == IID_ITfThreadMgrEventSink) *object = static_cast<ITfThreadMgrEventSink*>(this);
   else if (riid == IID_ITfThreadFocusSink) *object = static_cast<ITfThreadFocusSink*>(this);
   else if (riid == IID_ITfActiveLanguageProfileNotifySink) *object = static_cast<ITfActiveLanguageProfileNotifySink*>(this);
+  else if (riid == IID_ITfTextEditSink) *object = static_cast<ITfTextEditSink*>(this);
+  else if (riid == IID_ITfCompartmentEventSink) *object = static_cast<ITfCompartmentEventSink*>(this);
   if (!*object) return E_NOINTERFACE;
   AddRef(); return S_OK;
 }
@@ -76,9 +78,6 @@ HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   InterlockedExchange(&g_tsfDiagnostics.clientId, static_cast<LONG>(id));
   TraceTsfEvent(L"ActivateEx");
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
-  const auto openHr = SetKeyboardOpen(true);
-  TraceTsfEvent(L"SetKeyboardOpen", openHr);
-  if (FAILED(openHr)) { Deactivate(); return openHr; }
   const auto adviseHr = AdviseSinks();
   if (SUCCEEDED(adviseHr)) return S_OK;
   Deactivate();
@@ -94,77 +93,80 @@ HRESULT TextService::Deactivate() {
   return S_OK;
 }
 HRESULT TextService::AdviseSinks() {
-  ITfKeystrokeMgr* keys = nullptr;
-  const auto queryHr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
-  if (FAILED(queryHr)) return queryHr;
-  const auto keyHr = keys->AdviseKeyEventSink(clientId_, this, TRUE); keys->Release();
-  InterlockedExchange(&g_tsfDiagnostics.keySinkAdviceResult, static_cast<LONG>(keyHr));
-  TraceTsfEvent(L"AdviseKeyEventSink", keyHr);
-  if (FAILED(keyHr)) return keyHr;
-
-  // Keystroke delivery is the only sink required for basic IME operation.
-  // Profile and thread notifications only improve composition cleanup and mode
-  // selection; a failure to subscribe to either must not turn the IME into an
-  // inert keyboard that passes every key through as Latin text.
   ITfSource* source = nullptr;
-  if (SUCCEEDED(threadManager_->QueryInterface(IID_PPV_ARGS(&source)))) {
-    const auto threadHr = source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_);
-    TraceTsfEvent(L"AdviseThreadMgrEventSink", threadHr);
-    if (FAILED(threadHr)) {
-      threadSinkCookie_ = TF_INVALID_COOKIE;
-    }
-    const auto threadFocusHr = source->AdviseSink(IID_ITfThreadFocusSink, static_cast<ITfThreadFocusSink*>(this), &threadFocusSinkCookie_);
-    TraceTsfEvent(L"AdviseThreadFocusSink", threadFocusHr);
-    if (FAILED(threadFocusHr)) {
-      threadFocusSinkCookie_ = TF_INVALID_COOKIE;
-    }
-    const auto profileHr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_);
-    TraceTsfEvent(L"AdviseProfileNotifySink", profileHr);
-    if (FAILED(profileHr)) {
-      profileSinkCookie_ = TF_INVALID_COOKIE;
-    }
-    source->Release();
-  }
-  return S_OK;
-}
-HRESULT TextService::EnsureKeyEventSinkForeground() {
-  if (!threadManager_ || clientId_ == TF_CLIENTID_NULL) return E_UNEXPECTED;
-  ITfKeystrokeMgr* keys = nullptr;
-  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
+  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&source));
   if (FAILED(hr)) return hr;
-  CLSID foreground{};
-  const auto foregroundHr = keys->GetForeground(&foreground);
-  if (foregroundHr == S_OK && IsEqualCLSID(foreground, CLSID_AksharaTextService)) {
-    keys->Release();
-    TraceTsfEvent(L"AksharaIsForeground");
-    return S_OK;
-  }
-  keys->UnadviseKeyEventSink(clientId_);
+  hr = source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_);
+  TraceTsfEvent(L"AdviseThreadMgrEventSink", hr);
+  if (SUCCEEDED(hr)) hr = source->AdviseSink(IID_ITfThreadFocusSink, static_cast<ITfThreadFocusSink*>(this), &threadFocusSinkCookie_);
+  TraceTsfEvent(L"AdviseThreadFocusSink", hr);
+  if (SUCCEEDED(hr)) hr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_);
+  TraceTsfEvent(L"AdviseProfileNotifySink", hr);
+  source->Release();
+  if (FAILED(hr)) return hr;
+  ITfDocumentMgr* document = nullptr;
+  hr = threadManager_->GetFocus(&document);
+  if (SUCCEEDED(hr) && document) { hr = AdviseFocusedContext(document); document->Release(); }
+  if (FAILED(hr)) return hr;
+  hr = AdviseKeyboardOpenCompartment();
+  if (FAILED(hr)) return hr;
+  ITfKeystrokeMgr* keys = nullptr;
+  hr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
+  if (FAILED(hr)) return hr;
   hr = keys->AdviseKeyEventSink(clientId_, static_cast<ITfKeyEventSink*>(this), TRUE);
   keys->Release();
-  TraceTsfEvent(L"ReassertForegroundKeySink", hr);
+  InterlockedExchange(&g_tsfDiagnostics.keySinkAdviceResult, static_cast<LONG>(hr));
+  TraceTsfEvent(L"AdviseKeyEventSink", hr);
   return hr;
 }
-HRESULT TextService::SetKeyboardOpen(bool open) {
-  if (!threadManager_ || clientId_ == TF_CLIENTID_NULL) return E_UNEXPECTED;
-  ITfCompartmentMgr* compartments = nullptr;
-  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&compartments));
-  if (FAILED(hr)) return hr;
-  ITfCompartment* keyboardOpen = nullptr;
-  hr = compartments->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &keyboardOpen);
-  compartments->Release();
-  if (FAILED(hr)) return hr;
-  VARIANT value{};
-  VariantInit(&value);
-  value.vt = VT_I4;
-  value.lVal = open ? 1 : 0;
-  hr = keyboardOpen->SetValue(clientId_, &value);
-  VariantClear(&value);
-  keyboardOpen->Release();
+HRESULT TextService::AdviseFocusedContext(ITfDocumentMgr* document) {
+  UnadviseFocusedContext();
+  if (!document) return S_OK;
+  ITfContext* context = nullptr;
+  auto hr = document->GetTop(&context);
+  if (FAILED(hr) || !context) return FAILED(hr) ? hr : S_OK;
+  ITfSource* source = nullptr;
+  hr = context->QueryInterface(IID_PPV_ARGS(&source));
+  if (SUCCEEDED(hr)) {
+    hr = source->AdviseSink(IID_ITfTextEditSink, static_cast<ITfTextEditSink*>(this), &textEditSinkCookie_);
+    source->Release();
+  }
+  TraceTsfEvent(L"AdviseTextEditSink", hr);
+  if (SUCCEEDED(hr)) textEditContext_ = context;
+  else context->Release();
   return hr;
+}
+HRESULT TextService::AdviseKeyboardOpenCompartment() {
+  ITfCompartmentMgr* manager = nullptr;
+  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&manager));
+  if (FAILED(hr)) return hr;
+  hr = manager->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &keyboardOpenCompartment_);
+  manager->Release();
+  if (FAILED(hr)) return hr;
+  ITfSource* source = nullptr;
+  hr = keyboardOpenCompartment_->QueryInterface(IID_PPV_ARGS(&source));
+  if (SUCCEEDED(hr)) { hr = source->AdviseSink(IID_ITfCompartmentEventSink, static_cast<ITfCompartmentEventSink*>(this), &keyboardOpenSinkCookie_); source->Release(); }
+  TraceTsfEvent(L"AdviseKeyboardOpenSink", hr);
+  if (FAILED(hr)) return hr;
+  return OnChange(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
+}
+void TextService::UnadviseFocusedContext() {
+  if (textEditContext_ && textEditSinkCookie_ != TF_INVALID_COOKIE) {
+    ITfSource* source = nullptr;
+    if (SUCCEEDED(textEditContext_->QueryInterface(IID_PPV_ARGS(&source)))) { source->UnadviseSink(textEditSinkCookie_); source->Release(); }
+  }
+  textEditSinkCookie_ = TF_INVALID_COOKIE;
+  ComRelease(textEditContext_);
 }
 void TextService::UnadviseSinks() {
   if (!threadManager_) return;
+  UnadviseFocusedContext();
+  if (keyboardOpenCompartment_ && keyboardOpenSinkCookie_ != TF_INVALID_COOKIE) {
+    ITfSource* source = nullptr;
+    if (SUCCEEDED(keyboardOpenCompartment_->QueryInterface(IID_PPV_ARGS(&source)))) { source->UnadviseSink(keyboardOpenSinkCookie_); source->Release(); }
+  }
+  keyboardOpenSinkCookie_ = TF_INVALID_COOKIE;
+  ComRelease(keyboardOpenCompartment_);
   ITfKeystrokeMgr* keys = nullptr;
   if (SUCCEEDED(threadManager_->QueryInterface(IID_PPV_ARGS(&keys)))) { keys->UnadviseKeyEventSink(clientId_); keys->Release(); }
   ITfSource* source = nullptr;
@@ -292,12 +294,14 @@ HRESULT TextService::OnPushContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnPopContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnSetThreadFocus() {
   TraceTsfEvent(L"OnSetThreadFocus");
-  return EnsureKeyEventSinkForeground();
+  return S_OK;
 }
 HRESULT TextService::OnKillThreadFocus() { TraceTsfEvent(L"OnKillThreadFocus"); return S_OK; }
-HRESULT TextService::OnSetFocus(ITfDocumentMgr*, ITfDocumentMgr* previous) {
+HRESULT TextService::OnSetFocus(ITfDocumentMgr* focus, ITfDocumentMgr* previous) {
   TraceTsfEvent(L"OnSetFocus");
-  EnsureKeyEventSinkForeground();
+  if (focus) {
+    AdviseFocusedContext(focus);
+  }
   ITfContext* context = nullptr;
   if (previous && SUCCEEDED(previous->GetTop(&context)) && context) { RequestEdit(context, true); context->Release(); }
   else { ResetComposition(); buffer_.clear(); }
@@ -311,7 +315,6 @@ void TextService::SelectProfile(REFGUID profile) {
 HRESULT TextService::OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) {
   if (clsid == CLSID_AksharaTextService && activated) {
     TraceTsfEvent(L"OnActivated");
-    EnsureKeyEventSinkForeground();
     if (!buffer_.empty() && threadManager_) {
       ITfDocumentMgr* document = nullptr; ITfContext* context = nullptr;
       if (SUCCEEDED(threadManager_->GetFocus(&document)) && document) document->GetTop(&context);
@@ -322,4 +325,15 @@ HRESULT TextService::OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated
   }
   else if (!activated) { ResetComposition(); buffer_.clear(); }
   return S_OK;
+}
+HRESULT TextService::OnEndEdit(ITfContext*, TfEditCookie, ITfEditRecord*) { return S_OK; }
+HRESULT TextService::OnChange(REFGUID guid) {
+  if (guid != GUID_COMPARTMENT_KEYBOARD_OPENCLOSE || !keyboardOpenCompartment_) return S_OK;
+  VARIANT value{};
+  VariantInit(&value);
+  const auto hr = keyboardOpenCompartment_->GetValue(&value);
+  if (SUCCEEDED(hr) && value.vt == VT_I4) keyboardOpen_ = value.lVal != 0;
+  VariantClear(&value);
+  TraceTsfEvent(keyboardOpen_ ? L"KeyboardOpen" : L"KeyboardClosed", hr);
+  return hr;
 }
