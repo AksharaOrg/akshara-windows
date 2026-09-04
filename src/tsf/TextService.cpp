@@ -148,6 +148,22 @@ HRESULT TextService::AdviseKeyboardOpenCompartment() {
   if (SUCCEEDED(hr)) { hr = source->AdviseSink(IID_ITfCompartmentEventSink, static_cast<ITfCompartmentEventSink*>(this), &keyboardOpenSinkCookie_); source->Release(); }
   TraceTsfEvent(L"AdviseKeyboardOpenSink", hr);
   if (FAILED(hr)) return hr;
+  // A newly installed TIP can have no open/close value at all (S_FALSE).
+  // Established TSF IMEs initialize that state to open; without it Windows
+  // treats the profile as an inactive/English-mode TIP. Do not overwrite an
+  // explicit user choice to close the keyboard.
+  VARIANT value{};
+  VariantInit(&value);
+  const auto readHr = keyboardOpenCompartment_->GetValue(&value);
+  VariantClear(&value);
+  if (readHr == S_FALSE) {
+    value.vt = VT_I4;
+    value.lVal = 1;
+    const auto writeHr = keyboardOpenCompartment_->SetValue(clientId_, &value);
+    VariantClear(&value);
+    TraceTsfEvent(L"InitializeKeyboardOpen", writeHr);
+    if (FAILED(writeHr)) return writeHr;
+  }
   return OnChange(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE);
 }
 void TextService::UnadviseFocusedContext() {
