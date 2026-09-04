@@ -7,6 +7,7 @@
 HINSTANCE g_module = nullptr;
 long g_objectCount = 0;
 long g_lockCount = 0;
+AksharaTsfDiagnostics g_tsfDiagnostics{};
 
 class ClassFactory final : public IClassFactory {
  public:
@@ -43,6 +44,10 @@ HRESULT CreateTextService(REFIID riid, void** object) {
 extern "C" HRESULT __stdcall DllCanUnloadNow() {
   return g_objectCount == 0 && g_lockCount == 0 ? S_OK : S_FALSE;
 }
+extern "C" void __stdcall AksharaReadTsfDiagnostics(AksharaTsfDiagnostics* diagnostics) {
+  if (!diagnostics) return;
+  *diagnostics = g_tsfDiagnostics;
+}
 extern "C" HRESULT __stdcall DllGetClassObject(REFCLSID clsid, REFIID riid, void** object) {
   if (clsid != CLSID_AksharaTextService) return CLASS_E_CLASSNOTAVAILABLE;
   auto* factory = new (std::nothrow) ClassFactory();
@@ -51,4 +56,3 @@ extern "C" HRESULT __stdcall DllGetClassObject(REFCLSID clsid, REFIID riid, void
 }
 extern "C" HRESULT __stdcall DllRegisterServer() { return RegisterAkshara(); }
 extern "C" HRESULT __stdcall DllUnregisterServer() { return UnregisterAkshara(); }
-

@@ -6,6 +6,8 @@
 #include <iostream>
 
 namespace {
+using ReadDiagnostics = void(__stdcall*)(AksharaTsfDiagnostics* diagnostics);
+
 HRESULT Fail(const wchar_t* stage, HRESULT hr) {
   std::wcerr << stage << L" failed: 0x" << std::hex << static_cast<unsigned long>(hr) << L"\n";
   return hr;
@@ -49,6 +51,12 @@ int wmain() {
   if (SUCCEEDED(hr)) hr = keystrokes->TestKeyDown(L'M', 0, &eaten);
   if (SUCCEEDED(hr) && !eaten) hr = E_FAIL;
 
+  AksharaTsfDiagnostics diagnostics{};
+  const auto module = GetModuleHandleW(L"AksharaIME.dll");
+  const auto readDiagnostics = module ? reinterpret_cast<ReadDiagnostics>(
+      GetProcAddress(module, "AksharaReadTsfDiagnostics")) : nullptr;
+  if (readDiagnostics) readDiagnostics(&diagnostics);
+
   if (keystrokes) keystrokes->Release();
   if (profiles) profiles->Release();
   if (context) context->Release();
@@ -57,9 +65,17 @@ int wmain() {
   CoUninitialize();
 
   if (FAILED(hr)) {
+    std::wcerr << L"TSF diagnostics: activations=" << diagnostics.activationCalls
+               << L" advice=0x" << std::hex << static_cast<unsigned long>(diagnostics.keySinkAdviceResult)
+               << L" testKeyDown=" << std::dec << diagnostics.testKeyDownCalls
+               << L" keyDown=" << diagnostics.keyDownCalls
+               << L" writable=" << diagnostics.lastContextWasWritable
+               << L" eaten=" << diagnostics.lastKeyWasEaten
+               << L" clientId=" << diagnostics.clientId << L"\n";
     const auto* stage = eaten ? L"TSF key test" :
+                        (diagnostics.testKeyDownCalls == 0 ? L"TSF did not call Akshara's key sink" :
                         (IsEqualCLSID(active.clsid, CLSID_AksharaTextService) ?
-                         L"Akshara did not intercept M" : L"Akshara did not become the active TIP");
+                         L"Akshara did not intercept M" : L"Akshara did not become the active TIP"));
     return static_cast<int>(HRESULT_CODE(Fail(stage, hr)));
   }
   std::wcout << L"Akshara TSF integration test passed.\n";

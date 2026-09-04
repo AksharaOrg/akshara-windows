@@ -14,7 +14,19 @@ inline constexpr GUID GUID_PROFILE_AKSHARA_WIJESEKARA =
 inline constexpr LANGID kSinhalaSriLanka = 0x045B;
 inline constexpr UINT kImeIconResourceId = 201;
 
+// Read-only support data for the in-process TSF integration test.  It records
+// lifecycle state only; no keystrokes or text are retained.
+struct AksharaTsfDiagnostics {
+  LONG activationCalls{};
+  LONG keySinkAdviceResult{};
+  LONG testKeyDownCalls{};
+  LONG keyDownCalls{};
+  LONG lastKeyWasEaten{};
+  LONG lastContextWasWritable{};
+  LONG clientId{};
+};
+
 extern HINSTANCE g_module;
 extern long g_objectCount;
 extern long g_lockCount;
-
+extern AksharaTsfDiagnostics g_tsfDiagnostics;

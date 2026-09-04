@@ -44,6 +44,8 @@ ULONG TextService::Release() { const auto count = --refs_; if (!count) delete th
 HRESULT TextService::Activate(ITfThreadMgr* manager, TfClientId id) { return ActivateEx(manager, id, 0); }
 HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   if (!manager || threadManager_) return E_INVALIDARG;
+  InterlockedIncrement(&g_tsfDiagnostics.activationCalls);
+  InterlockedExchange(&g_tsfDiagnostics.clientId, static_cast<LONG>(id));
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
   const auto adviseHr = AdviseSinks();
   if (SUCCEEDED(adviseHr)) return S_OK;
@@ -64,6 +66,7 @@ HRESULT TextService::AdviseSinks() {
   const auto queryHr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
   if (FAILED(queryHr)) return queryHr;
   const auto keyHr = keys->AdviseKeyEventSink(clientId_, this, TRUE); keys->Release();
+  InterlockedExchange(&g_tsfDiagnostics.keySinkAdviceResult, static_cast<LONG>(keyHr));
   if (FAILED(keyHr)) return keyHr;
 
   // Keystroke delivery is the only sink required for basic IME operation.
@@ -123,13 +126,21 @@ bool TextService::ShouldEatKey(ITfContext* context, WPARAM key) const {
   return key >= 'A' && key <= 'Z';
 }
 HRESULT TextService::OnTestKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL* eaten) {
-  if (!eaten) return E_POINTER; *eaten = ShouldEatKey(context, key); return S_OK;
+  InterlockedIncrement(&g_tsfDiagnostics.testKeyDownCalls);
+  const bool writable = IsContextWritable(context);
+  InterlockedExchange(&g_tsfDiagnostics.lastContextWasWritable, writable);
+  if (!eaten) return E_POINTER;
+  *eaten = writable && ShouldEatKey(context, key);
+  InterlockedExchange(&g_tsfDiagnostics.lastKeyWasEaten, *eaten);
+  return S_OK;
 }
 HRESULT TextService::OnTestKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL* eaten) {
   if (!eaten) return E_POINTER;
+  InterlockedIncrement(&g_tsfDiagnostics.keyDownCalls);
   *eaten = HandleKey(context, key);
+  InterlockedExchange(&g_tsfDiagnostics.lastKeyWasEaten, *eaten);
   return S_OK;
 }
 bool TextService::HandleKey(ITfContext* context, WPARAM key) {
