@@ -40,6 +40,8 @@ jobs:
         run: |
           $bundle = (Get-ChildItem dist/dev/*-Setup.exe | Select-Object -First 1).FullName
           ./tools/verify-install.ps1 -Bundle $bundle
+          & build/x64/Release/akshara_tsf_integration_tests.exe
+          if ($LASTEXITCODE -ne 0) { throw "Akshara TSF integration test failed: $LASTEXITCODE" }
       - name: Upload developer installer
         uses: actions/upload-artifact@v7
         with:
