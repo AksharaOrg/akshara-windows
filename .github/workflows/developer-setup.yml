@@ -35,6 +35,12 @@ jobs:
             '${{ github.ref_name }}' -replace '^dev-v', ''
           }
           ./tools/build-dev-setup.ps1 -Version $version -OutputDirectory dist/dev
+      - name: Install and probe developer setup
+        shell: pwsh
+        run: |
+          $bundle = (Get-ChildItem dist/dev/*-Setup.exe | Select-Object -First 1).FullName
+          ./tools/verify-install.ps1 -Bundle $bundle
+          ./tools/verify-install.ps1 -Bundle $bundle -Uninstall
       - name: Upload developer installer
         uses: actions/upload-artifact@v7
         with:

@@ -45,7 +45,9 @@ HRESULT TextService::Activate(ITfThreadMgr* manager, TfClientId id) { return Act
 HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   if (!manager || threadManager_) return E_INVALIDARG;
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
-  return AdviseSinks() ? S_OK : E_FAIL;
+  if (AdviseSinks()) return S_OK;
+  Deactivate();
+  return E_FAIL;
 }
 HRESULT TextService::Deactivate() {
   if (!threadManager_) return S_OK;
@@ -60,12 +62,23 @@ bool TextService::AdviseSinks() {
   ITfKeystrokeMgr* keys = nullptr;
   if (FAILED(threadManager_->QueryInterface(IID_PPV_ARGS(&keys)))) return false;
   const auto keyHr = keys->AdviseKeyEventSink(clientId_, this, TRUE); keys->Release();
+  if (FAILED(keyHr)) return false;
+
+  // Keystroke delivery is the only sink required for basic IME operation.
+  // Profile and thread notifications only improve composition cleanup and mode
+  // selection; a failure to subscribe to either must not turn the IME into an
+  // inert keyboard that passes every key through as Latin text.
   ITfSource* source = nullptr;
-  if (FAILED(threadManager_->QueryInterface(IID_PPV_ARGS(&source)))) return false;
-  const auto threadHr = source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_);
-  const auto profileHr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_);
-  source->Release();
-  return SUCCEEDED(keyHr) && SUCCEEDED(threadHr) && SUCCEEDED(profileHr);
+  if (SUCCEEDED(threadManager_->QueryInterface(IID_PPV_ARGS(&source)))) {
+    if (FAILED(source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_))) {
+      threadSinkCookie_ = TF_INVALID_COOKIE;
+    }
+    if (FAILED(source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_))) {
+      profileSinkCookie_ = TF_INVALID_COOKIE;
+    }
+    source->Release();
+  }
+  return true;
 }
 void TextService::UnadviseSinks() {
   if (!threadManager_) return;
