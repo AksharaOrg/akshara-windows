@@ -1,0 +1,43 @@
+name: Developer setup
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Numeric MAJOR.MINOR.PATCH version for the unsigned package
+        required: false
+        default: 0.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  build-unsigned-setup:
+    runs-on: windows-2022
+    env:
+      WIX_ACCEPT_EULA: ${{ vars.WIX_ACCEPT_EULA }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate WiX EULA acceptance
+        shell: pwsh
+        run: |
+          if ($env:WIX_ACCEPT_EULA -ne 'wix7') {
+            throw 'Set the repository variable WIX_ACCEPT_EULA to wix7 before packaging.'
+          }
+      - name: Build unsigned developer setup
+        shell: pwsh
+        run: |
+          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '0.1.0' }
+          ./tools/build-dev-setup.ps1 -Version $version -OutputDirectory dist/dev
+      - name: Upload developer installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Akshara-Windows-unsigned-${{ github.sha }}
+          path: |
+            dist/dev/Akshara-Windows-*-Setup.exe
+            dist/dev/Akshara-Windows-*.msi
+            dist/dev/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
