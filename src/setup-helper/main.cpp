@@ -24,13 +24,23 @@ int ProbeActivation() {
   hr = manager->Activate(&clientId);
   if (FAILED(hr)) { manager->Release(); return ExitCode(hr); }
 
+  ITfDocumentMgr* document = nullptr;
+  ITfContext* context = nullptr;
+  TfEditCookie cookie{};
+  hr = manager->CreateDocumentMgr(&document);
+  if (SUCCEEDED(hr)) hr = document->CreateContext(clientId, 0, nullptr, &context, &cookie);
+  if (SUCCEEDED(hr)) hr = document->Push(context);
+  if (SUCCEEDED(hr)) hr = manager->SetFocus(document);
+
   ITfTextInputProcessorEx* service = nullptr;
-  hr = CoCreateInstance(CLSID_AksharaTextService, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&service));
+  if (SUCCEEDED(hr)) hr = CoCreateInstance(CLSID_AksharaTextService, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&service));
   if (SUCCEEDED(hr)) {
     hr = service->ActivateEx(manager, clientId, 0);
     if (SUCCEEDED(hr)) service->Deactivate();
     service->Release();
   }
+  if (context) context->Release();
+  if (document) document->Release();
   manager->Deactivate();
   manager->Release();
   if (SUCCEEDED(hr)) std::wcout << L"Akshara TSF activation probe succeeded.\n";
