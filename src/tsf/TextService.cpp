@@ -45,9 +45,10 @@ HRESULT TextService::Activate(ITfThreadMgr* manager, TfClientId id) { return Act
 HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   if (!manager || threadManager_) return E_INVALIDARG;
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
-  if (AdviseSinks()) return S_OK;
+  const auto adviseHr = AdviseSinks();
+  if (SUCCEEDED(adviseHr)) return S_OK;
   Deactivate();
-  return E_FAIL;
+  return adviseHr;
 }
 HRESULT TextService::Deactivate() {
   if (!threadManager_) return S_OK;
@@ -58,11 +59,12 @@ HRESULT TextService::Deactivate() {
   UnadviseSinks(); ResetComposition(); buffer_.clear(); clientId_ = TF_CLIENTID_NULL; ComRelease(threadManager_);
   return S_OK;
 }
-bool TextService::AdviseSinks() {
+HRESULT TextService::AdviseSinks() {
   ITfKeystrokeMgr* keys = nullptr;
-  if (FAILED(threadManager_->QueryInterface(IID_PPV_ARGS(&keys)))) return false;
+  const auto queryHr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
+  if (FAILED(queryHr)) return queryHr;
   const auto keyHr = keys->AdviseKeyEventSink(clientId_, this, TRUE); keys->Release();
-  if (FAILED(keyHr)) return false;
+  if (FAILED(keyHr)) return keyHr;
 
   // Keystroke delivery is the only sink required for basic IME operation.
   // Profile and thread notifications only improve composition cleanup and mode
@@ -78,7 +80,7 @@ bool TextService::AdviseSinks() {
     }
     source->Release();
   }
-  return true;
+  return S_OK;
 }
 void TextService::UnadviseSinks() {
   if (!threadManager_) return;

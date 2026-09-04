@@ -38,7 +38,7 @@ class TextService final : public ITfTextInputProcessorEx,
   HRESULT ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commitOnly);
 
  private:
-  bool AdviseSinks();
+  HRESULT AdviseSinks();
   void UnadviseSinks();
   bool ShouldEatKey(ITfContext* context, WPARAM key) const;
   bool IsContextWritable(ITfContext* context) const;
