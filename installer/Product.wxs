@@ -41,7 +41,10 @@
 
     <CustomAction Id="RegisterX64" FileRef="X64Register" ExeCommand='install &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
     <CustomAction Id="RegisterX86" FileRef="X86Register" ExeCommand='install &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
-    <CustomAction Id="ClearInstallingUserDiagnostics" FileRef="X64Register" ExeCommand="clear-log" Execute="deferred" Impersonate="yes" Return="check" />
+    <!-- A stale diagnostics handle must not prevent an IME upgrade. The helper
+         still removes the log when possible; a later activation safely appends
+         a new one if another process holds the previous file open. -->
+    <CustomAction Id="ClearInstallingUserDiagnostics" FileRef="X64Register" ExeCommand="clear-log" Execute="deferred" Impersonate="yes" Return="ignore" />
     <CustomAction Id="EnableSmartForInstallingUser" FileRef="X64Register" ExeCommand="enable smart" Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="UnregisterX64" FileRef="X64Register" ExeCommand='uninstall &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
     <CustomAction Id="UnregisterX86" FileRef="X86Register" ExeCommand='uninstall &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
