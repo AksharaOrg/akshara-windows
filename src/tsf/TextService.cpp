@@ -104,15 +104,37 @@ HRESULT TextService::AdviseSinks() {
   // inert keyboard that passes every key through as Latin text.
   ITfSource* source = nullptr;
   if (SUCCEEDED(threadManager_->QueryInterface(IID_PPV_ARGS(&source)))) {
-    if (FAILED(source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_))) {
+    const auto threadHr = source->AdviseSink(IID_ITfThreadMgrEventSink, static_cast<ITfThreadMgrEventSink*>(this), &threadSinkCookie_);
+    TraceTsfEvent(L"AdviseThreadMgrEventSink", threadHr);
+    if (FAILED(threadHr)) {
       threadSinkCookie_ = TF_INVALID_COOKIE;
     }
-    if (FAILED(source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_))) {
+    const auto profileHr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_);
+    TraceTsfEvent(L"AdviseProfileNotifySink", profileHr);
+    if (FAILED(profileHr)) {
       profileSinkCookie_ = TF_INVALID_COOKIE;
     }
     source->Release();
   }
   return S_OK;
+}
+HRESULT TextService::EnsureKeyEventSinkForeground() {
+  if (!threadManager_ || clientId_ == TF_CLIENTID_NULL) return E_UNEXPECTED;
+  ITfKeystrokeMgr* keys = nullptr;
+  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
+  if (FAILED(hr)) return hr;
+  CLSID foreground{};
+  const auto foregroundHr = keys->GetForeground(&foreground);
+  if (foregroundHr == S_OK && IsEqualCLSID(foreground, CLSID_AksharaTextService)) {
+    keys->Release();
+    TraceTsfEvent(L"AksharaIsForeground");
+    return S_OK;
+  }
+  keys->UnadviseKeyEventSink(clientId_);
+  hr = keys->AdviseKeyEventSink(clientId_, static_cast<ITfKeyEventSink*>(this), TRUE);
+  keys->Release();
+  TraceTsfEvent(L"ReassertForegroundKeySink", hr);
+  return hr;
 }
 void TextService::UnadviseSinks() {
   if (!threadManager_) return;
@@ -241,6 +263,8 @@ HRESULT TextService::OnUninitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
 HRESULT TextService::OnPushContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnPopContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnSetFocus(ITfDocumentMgr*, ITfDocumentMgr* previous) {
+  TraceTsfEvent(L"OnSetFocus");
+  EnsureKeyEventSinkForeground();
   ITfContext* context = nullptr;
   if (previous && SUCCEEDED(previous->GetTop(&context)) && context) { RequestEdit(context, true); context->Release(); }
   else { ResetComposition(); buffer_.clear(); }
@@ -253,6 +277,8 @@ void TextService::SelectProfile(REFGUID profile) {
 }
 HRESULT TextService::OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) {
   if (clsid == CLSID_AksharaTextService && activated) {
+    TraceTsfEvent(L"OnActivated");
+    EnsureKeyEventSinkForeground();
     if (!buffer_.empty() && threadManager_) {
       ITfDocumentMgr* document = nullptr; ITfContext* context = nullptr;
       if (SUCCEEDED(threadManager_->GetFocus(&document)) && document) document->GetTop(&context);
