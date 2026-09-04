@@ -1,0 +1,12 @@
+/build/
+/dist/
+/stage/
+/.vs/
+/.idea/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+installer/bin/
+installer/obj/
+/docs/

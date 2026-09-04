@@ -1,0 +1,57 @@
+name: Microsoft Store submission
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing signed GitHub release tag (vMAJOR.MINOR.PATCH)
+        required: true
+permissions:
+  contents: read
+jobs:
+  submit:
+    runs-on: windows-2025
+    environment: microsoft-store
+    steps:
+      - uses: actions/checkout@v5
+      - uses: microsoft/microsoft-store-apppublisher@v1.1
+      - id: tag
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'release') { '${{ github.event.release.tag_name }}' } else { '${{ inputs.tag }}' }
+          ./tools/version.ps1 $tag
+          "tag=$tag" | Out-File $env:GITHUB_OUTPUT -Append
+      - name: Download exact immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release download '${{ steps.tag.outputs.tag }}' --pattern '${{ steps.tag.outputs.artifact_prefix }}*' --pattern SHA256SUMS.txt --dir release
+      - name: Verify hash and signature
+        shell: pwsh
+        run: |
+          $expectedLine = Get-Content release/SHA256SUMS.txt | Where-Object { $_ -match 'Setup\.exe$' }
+          $expected = ($expectedLine -split '\s+')[0]
+          $setup = "release/${{ steps.tag.outputs.artifact_prefix }}-Setup.exe"
+          $actual = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw 'Released Setup.exe hash does not match SHA256SUMS.txt' }
+          ./tools/verify-signatures.ps1 -Paths $setup
+      - name: Configure Partner Center credentials
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId '${{ secrets.AZURE_AD_TENANT_ID }}' `
+            --sellerId '${{ secrets.SELLER_ID }}' `
+            --clientId '${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}' `
+            --clientSecret '${{ secrets.AZURE_AD_APPLICATION_SECRET }}'
+      - name: Construct and submit Win32 package update
+        shell: pwsh
+        run: |
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.artifact_prefix }}-Setup.exe"
+          $package = Get-Content store/package.template.json -Raw | ConvertFrom-Json
+          $package.packages[0].packageUrl = $url
+          $package.packages[0].installerParameters = '/quiet /norestart'
+          $json = $package | ConvertTo-Json -Depth 20 -Compress
+          msstore submission update '${{ vars.MICROSOFT_STORE_PRODUCT_ID }}' $json
+          msstore submission publish '${{ vars.MICROSOFT_STORE_PRODUCT_ID }}'
+

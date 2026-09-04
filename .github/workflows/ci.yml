@@ -1,0 +1,77 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: windows-x86
+            run-tests: true
+          - preset: windows-x64
+            run-tests: true
+          - preset: windows-arm64
+            run-tests: false
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }} "-DAKSHARA_VERSION=0.1.0"
+      - name: Build release
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test
+        if: matrix.run-tests
+        run: ctest --test-dir build/${{ matrix.preset == 'windows-x86' && 'x86' || 'x64' }} -C Release --output-on-failure
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-${{ matrix.preset }}
+          path: build/${{ matrix.preset == 'windows-x86' && 'x86' || matrix.preset == 'windows-x64' && 'x64' || 'arm64' }}/Release/
+  core-sanitizers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: cmake -S . -B build/sanitize -DAKSHARA_BUILD_WINDOWS_COMPONENTS=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer'
+      - run: cmake --build build/sanitize
+      - run: ctest --test-dir build/sanitize --output-on-failure
+  installer-validation:
+    if: vars.WIX_ACCEPT_EULA == 'wix7'
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build x86 payload
+        run: |
+          cmake --preset windows-x86 "-DAKSHARA_VERSION=0.1.0"
+          cmake --build --preset windows-x86
+      - name: Build x64 payload
+        run: |
+          cmake --preset windows-x64 "-DAKSHARA_VERSION=0.1.0"
+          cmake --build --preset windows-x64
+      - name: Stage installer payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/payload/x86, build/payload/x64
+          Copy-Item build/x86/Release/AksharaIME.dll, build/x86/Release/AksharaRegister.exe build/payload/x86/
+          Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe, build/x64/Release/AksharaHelp.exe build/payload/x64/
+      - name: Build unsigned MSI and offline setup
+        shell: pwsh
+        run: |
+          $payloadRoot = (Resolve-Path build/payload).Path
+          dotnet build installer/Product.wixproj -c Release -p:Version=0.1.0 -p:AcceptEula=${{ vars.WIX_ACCEPT_EULA }} "-p:PayloadRoot=$payloadRoot"
+          $msiPath = (Get-ChildItem installer/bin -Recurse -Filter *.msi | Select-Object -First 1).FullName
+          if (-not $msiPath) { throw "WiX did not produce an MSI" }
+          dotnet build installer/Bundle.wixproj -c Release -p:Version=0.1.0 -p:AcceptEula=${{ vars.WIX_ACCEPT_EULA }} "-p:MsiPath=$msiPath"
+      - name: Upload unsigned installer diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer
+          path: |
+            installer/bin/
+            installer/obj/

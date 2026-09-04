@@ -1,0 +1,9 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <Bundle Name="Akshara" Manufacturer="AksharaOrg" Version="$(var.Version)"
+          UpgradeCode="04D39F37-0828-47C1-8684-0299BDA34B1F" IconSourceFile="..\assets\windows\Akshara.ico">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="https://github.com/AksharaOrg/akshara-windows/blob/main/LICENSE" LogoFile="..\assets\windows\Square150x150Logo.png" />
+    </BootstrapperApplication>
+    <Chain><MsiPackage SourceFile="$(var.MsiPath)" Compressed="yes" Vital="yes" /></Chain>
+  </Bundle>
+</Wix>

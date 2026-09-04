@@ -1,0 +1,141 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  build-sign-release:
+    runs-on: windows-2022
+    env:
+      WIX_ACCEPT_EULA: ${{ vars.WIX_ACCEPT_EULA }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - id: version
+        name: Validate version
+        shell: pwsh
+        run: ./tools/version.ps1 '${{ github.ref_name }}'
+      - name: Validate WiX EULA acceptance
+        shell: pwsh
+        run: |
+          if ($env:WIX_ACCEPT_EULA -ne 'wix7') {
+            throw 'A repository administrator must accept the WiX 7 OSMF EULA and set WIX_ACCEPT_EULA=wix7 before release packaging.'
+          }
+      - name: Build x86 and x64
+        shell: pwsh
+        run: |
+          cmake --preset windows-x86 "-DAKSHARA_VERSION=${{ steps.version.outputs.version }}"
+          cmake --build --preset windows-x86
+          cmake --preset windows-x64 "-DAKSHARA_VERSION=${{ steps.version.outputs.version }}"
+          cmake --build --preset windows-x64
+      - name: Compile-check ARM64
+        run: cmake --preset windows-arm64 "-DAKSHARA_VERSION=${{ steps.version.outputs.version }}" && cmake --build --preset windows-arm64
+      - name: Test both runnable architectures
+        shell: pwsh
+        run: |
+          ctest --test-dir build/x86 -C Release --output-on-failure
+          ctest --test-dir build/x64 -C Release --output-on-failure
+      - name: Stage unsigned PE payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force stage/unsigned/x86,stage/unsigned/x64 | Out-Null
+          Copy-Item build/x86/Release/AksharaIME.dll,build/x86/Release/AksharaRegister.exe stage/unsigned/x86/
+          Copy-Item build/x64/Release/AksharaIME.dll,build/x64/Release/AksharaRegister.exe,build/x64/Release/AksharaHelp.exe stage/unsigned/x64/
+      - id: unsigned-pe
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-pe-${{ github.ref_name }}
+          path: stage/unsigned
+      - name: Sign PE payloads with SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_PE_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-pe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: stage/signed
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+      - name: Verify signed payloads
+        shell: pwsh
+        run: ./tools/verify-signatures.ps1 -Paths (Get-ChildItem stage/signed -Recurse -Include *.exe,*.dll | ForEach-Object FullName)
+      - name: Build MSI from signed payloads
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/msi | Out-Null
+          dotnet build installer/Product.wixproj -c Release -p:Version=${{ steps.version.outputs.version }} -p:AcceptEula=$env:WIX_ACCEPT_EULA -p:PayloadRoot="${{ github.workspace }}\stage\signed" -o dist/msi
+          $msi = Get-ChildItem dist/msi/*.msi | Select-Object -First 1
+          Copy-Item $msi.FullName "dist/${{ steps.version.outputs.artifact_prefix }}.msi"
+      - id: unsigned-msi
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-msi-${{ github.ref_name }}
+          path: dist/${{ steps.version.outputs.artifact_prefix }}.msi
+          archive: false
+      - name: Sign MSI with SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_MSI_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
+          skip-decompress: true
+          wait-for-completion: true
+          output-artifact-directory: dist/signed-msi
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+      - name: Build offline bundle around signed MSI
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem dist/signed-msi/*.msi | Select-Object -First 1
+          Copy-Item $msi.FullName "dist/${{ steps.version.outputs.artifact_prefix }}.msi" -Force
+          dotnet build installer/Bundle.wixproj -c Release -p:Version=${{ steps.version.outputs.version }} -p:AcceptEula=$env:WIX_ACCEPT_EULA -p:MsiPath="$($msi.FullName)" -o dist/bundle
+          $bundle = Get-ChildItem dist/bundle/*.exe | Select-Object -First 1
+          Copy-Item $bundle.FullName "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe"
+      - id: unsigned-bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-bundle-${{ github.ref_name }}
+          path: dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe
+          archive: false
+      - name: Sign setup EXE with SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_EXE_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned-bundle.outputs.artifact-id }}
+          skip-decompress: true
+          wait-for-completion: true
+          output-artifact-directory: dist/signed-bundle
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+      - name: Finalize and verify release
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/signed-bundle/*.exe | Select-Object -First 1
+          Copy-Item $setup.FullName "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe" -Force
+          ./tools/verify-signatures.ps1 -Paths @("dist/${{ steps.version.outputs.artifact_prefix }}.msi", "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe")
+          Get-FileHash "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe","dist/${{ steps.version.outputs.artifact_prefix }}.msi" -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/SHA256SUMS.txt
+      - name: Installer smoke test
+        shell: pwsh
+        run: |
+          ./tools/verify-install.ps1 -Bundle "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe"
+          ./tools/verify-install.ps1 -Bundle "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe" -Uninstall
+      - name: Publish immutable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create '${{ github.ref_name }}' --verify-tag --generate-notes "dist/${{ steps.version.outputs.artifact_prefix }}-Setup.exe" "dist/${{ steps.version.outputs.artifact_prefix }}.msi" dist/SHA256SUMS.txt

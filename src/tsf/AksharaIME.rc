@@ -1,0 +1,33 @@
+#include "resource.h"
+#include <windows.h>
+
+IDI_AKSHARA_IME ICON "../../assets/ime/AksharaInput.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION AKSHARA_VERSION_MAJOR,AKSHARA_VERSION_MINOR,AKSHARA_VERSION_PATCH,0
+ PRODUCTVERSION AKSHARA_VERSION_MAJOR,AKSHARA_VERSION_MINOR,AKSHARA_VERSION_PATCH,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_DLL
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904b0"
+  BEGIN
+   VALUE "CompanyName", "AksharaOrg\0"
+   VALUE "FileDescription", "Akshara Sinhala Text Service\0"
+   VALUE "OriginalFilename", "AksharaIME.dll\0"
+   VALUE "ProductName", "Akshara\0"
+   VALUE "FileVersion", AKSHARA_VERSION_STRING "\0"
+   VALUE "ProductVersion", AKSHARA_VERSION_STRING "\0"
+   VALUE "LegalCopyright", "Copyright (c) 2026 Akshara contributors\0"
+  END
+ END
+ BLOCK "VarFileInfo" BEGIN VALUE "Translation", 0x409, 1200 END
+END
+

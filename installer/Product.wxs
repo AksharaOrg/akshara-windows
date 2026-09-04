@@ -1,0 +1,54 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Akshara" Manufacturer="AksharaOrg" Version="$(var.Version)"
+           UpgradeCode="70E682A1-9D31-45A5-A345-3676F71B6B60" Scope="perMachine" Compressed="yes">
+    <SummaryInformation Description="Akshara Sinhala input method for Windows" Manufacturer="AksharaOrg" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Akshara is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="AksharaIcon" SourceFile="..\assets\windows\Akshara.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AksharaIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/AksharaOrg/akshara-windows/issues" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/AksharaOrg/akshara-windows" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="X64ROOT" Name="Akshara">
+        <Directory Id="X64DIR" Name="x64" />
+        <Directory Id="HELPDIR" Name="help" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="X86ROOT" Name="Akshara">
+        <Directory Id="X86DIR" Name="x86" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder"><Directory Id="MenuDir" Name="Akshara" /></StandardDirectory>
+
+    <ComponentGroup Id="Payload">
+      <Component Directory="X64DIR" Id="X64Tip" Guid="A64D534D-51D5-443E-87DE-7302466250E8" Bitness="always64">
+        <File Id="X64Dll" Source="$(var.PayloadRoot)\x64\AksharaIME.dll" KeyPath="yes" />
+        <File Id="X64Register" Source="$(var.PayloadRoot)\x64\AksharaRegister.exe" />
+      </Component>
+      <Component Directory="X86DIR" Id="X86Tip" Guid="8FFB882F-6BF5-4FCE-904C-A1041F82D290" Bitness="always32">
+        <File Id="X86Dll" Source="$(var.PayloadRoot)\x86\AksharaIME.dll" KeyPath="yes" />
+        <File Id="X86Register" Source="$(var.PayloadRoot)\x86\AksharaRegister.exe" />
+      </Component>
+      <Component Directory="HELPDIR" Id="HelpApp" Guid="E011C5C1-B9C1-4654-A49D-C5FE9244277F" Bitness="always64">
+        <File Id="HelpExe" Source="$(var.PayloadRoot)\x64\AksharaHelp.exe" KeyPath="yes">
+          <Shortcut Id="HelpShortcut" Directory="MenuDir" Name="Akshara Help" WorkingDirectory="HELPDIR" Advertise="yes" />
+        </File>
+        <RemoveFolder Id="RemoveMenuDir" Directory="MenuDir" On="uninstall" />
+      </Component>
+    </ComponentGroup>
+
+    <CustomAction Id="RegisterX64" FileRef="X64Register" ExeCommand='install &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="RegisterX86" FileRef="X86Register" ExeCommand='install &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="UnregisterX64" FileRef="X64Register" ExeCommand='uninstall &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="UnregisterX86" FileRef="X86Register" ExeCommand='uninstall &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="UnregisterX86" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="UnregisterX64" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="RegisterX64" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="RegisterX86" After="RegisterX64" Condition="NOT Installed OR REINSTALL" />
+    </InstallExecuteSequence>
+    <Feature Id="Complete" Title="Akshara" Level="1"><ComponentGroupRef Id="Payload" /></Feature>
+  </Package>
+</Wix>
