@@ -12,8 +12,17 @@ int ClearDiagnosticsLog() {
   const auto length = GetEnvironmentVariableW(L"LOCALAPPDATA", localAppData, _countof(localAppData));
   if (!length || length >= _countof(localAppData)) return ERROR_SUCCESS;
   const std::wstring path = std::wstring(localAppData, length) + L"\\Akshara\\tsf-diagnostics.log";
-  if (DeleteFileW(path.c_str()) || GetLastError() == ERROR_FILE_NOT_FOUND) return ERROR_SUCCESS;
-  return static_cast<int>(GetLastError());
+  // The running text service opens this file with write sharing but without
+  // delete sharing. Truncating therefore clears old diagnostics even when an
+  // app still has the previous DLL loaded during an upgrade.
+  const auto file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) return GetLastError() == ERROR_FILE_NOT_FOUND ? ERROR_SUCCESS : static_cast<int>(GetLastError());
+  LARGE_INTEGER zero{};
+  const bool cleared = SetFilePointerEx(file, zero, nullptr, FILE_BEGIN) && SetEndOfFile(file);
+  const auto error = cleared ? ERROR_SUCCESS : GetLastError();
+  CloseHandle(file);
+  return static_cast<int>(error);
 }
 
 int EnableProfile(std::wstring_view name) {
