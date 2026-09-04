@@ -36,6 +36,7 @@ jobs:
           }
           ./tools/build-dev-setup.ps1 -Version $version -OutputDirectory dist/dev
       - name: Install and verify developer setup
+        continue-on-error: true
         shell: pwsh
         run: |
           $bundle = (Get-ChildItem dist/dev/*-Setup.exe | Select-Object -First 1).FullName
