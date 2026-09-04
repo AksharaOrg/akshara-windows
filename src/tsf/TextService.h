@@ -40,6 +40,7 @@ class TextService final : public ITfTextInputProcessorEx,
  private:
   HRESULT AdviseSinks();
   HRESULT EnsureKeyEventSinkForeground();
+  HRESULT SetKeyboardOpen(bool open);
   void UnadviseSinks();
   bool ShouldEatKey(ITfContext* context, WPARAM key) const;
   bool IsContextWritable(ITfContext* context) const;

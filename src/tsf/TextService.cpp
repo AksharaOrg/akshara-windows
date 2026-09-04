@@ -75,6 +75,9 @@ HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   InterlockedExchange(&g_tsfDiagnostics.clientId, static_cast<LONG>(id));
   TraceTsfEvent(L"ActivateEx");
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
+  const auto openHr = SetKeyboardOpen(true);
+  TraceTsfEvent(L"SetKeyboardOpen", openHr);
+  if (FAILED(openHr)) { Deactivate(); return openHr; }
   const auto adviseHr = AdviseSinks();
   if (SUCCEEDED(adviseHr)) return S_OK;
   Deactivate();
@@ -134,6 +137,24 @@ HRESULT TextService::EnsureKeyEventSinkForeground() {
   hr = keys->AdviseKeyEventSink(clientId_, static_cast<ITfKeyEventSink*>(this), TRUE);
   keys->Release();
   TraceTsfEvent(L"ReassertForegroundKeySink", hr);
+  return hr;
+}
+HRESULT TextService::SetKeyboardOpen(bool open) {
+  if (!threadManager_ || clientId_ == TF_CLIENTID_NULL) return E_UNEXPECTED;
+  ITfCompartmentMgr* compartments = nullptr;
+  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&compartments));
+  if (FAILED(hr)) return hr;
+  ITfCompartment* keyboardOpen = nullptr;
+  hr = compartments->GetCompartment(GUID_COMPARTMENT_KEYBOARD_OPENCLOSE, &keyboardOpen);
+  compartments->Release();
+  if (FAILED(hr)) return hr;
+  VARIANT value{};
+  VariantInit(&value);
+  value.vt = VT_I4;
+  value.lVal = open ? 1 : 0;
+  hr = keyboardOpen->SetValue(clientId_, &value);
+  VariantClear(&value);
+  keyboardOpen->Release();
   return hr;
 }
 void TextService::UnadviseSinks() {

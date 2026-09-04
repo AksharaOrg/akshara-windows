@@ -41,7 +41,11 @@ HRESULT RegisterCategories(bool add) {
   ITfCategoryMgr* categories = nullptr;
   auto hr = CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&categories));
   if (FAILED(hr)) return hr;
-  constexpr std::array<const GUID*, 3> values{&GUID_TFCAT_TIP_KEYBOARD, &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, &GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT};
+  constexpr std::array<const GUID*, 4> values{
+      &GUID_TFCAT_TIP_KEYBOARD,
+      &GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
+      &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
+      &GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT};
   for (const auto* category : values) {
     hr = add ? categories->RegisterCategory(CLSID_AksharaTextService, *category, CLSID_AksharaTextService)
              : categories->UnregisterCategory(CLSID_AksharaTextService, *category, CLSID_AksharaTextService);
