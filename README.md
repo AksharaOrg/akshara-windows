@@ -34,7 +34,7 @@ Akshara-Windows-v1.0.0-Setup.exe /uninstall /quiet /norestart
 
 ## Unsigned developer setup
 
-Every push to `main` also produces a short-lived, unsigned developer installer in the GitHub Actions **Developer setup** workflow. Open the completed workflow run, download the `Akshara-Windows-unsigned-*` artifact, extract it, and run the `Setup.exe` as an administrator.
+An unsigned developer installer can be built manually from the GitHub Actions **Developer setup** workflow, or by pushing a `dev-vMAJOR.MINOR.PATCH` tag such as `dev-v0.1.0`. Open the completed workflow run, download the `Akshara-Windows-unsigned-*` artifact, extract it, and run the `Setup.exe` as an administrator. Production `vMAJOR.MINOR.PATCH` tags are reserved for the signed release workflow.
 
 Because this package is not code-signed, Windows may show **Windows protected your PC**. A developer can choose **More info**, verify that the app name is Akshara, and then choose **Run anyway**. The MSI in the same artifact is an alternative and installs the same payload. Do not distribute either unsigned package to end users.
 

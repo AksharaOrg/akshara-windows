@@ -2,7 +2,7 @@ name: Developer setup
 
 on:
   push:
-    branches: [main]
+    tags: ['dev-v*']
   workflow_dispatch:
     inputs:
       version:
@@ -29,7 +29,11 @@ jobs:
       - name: Build unsigned developer setup
         shell: pwsh
         run: |
-          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '0.1.0' }
+          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            '${{ inputs.version }}'
+          } else {
+            '${{ github.ref_name }}' -replace '^dev-v', ''
+          }
           ./tools/build-dev-setup.ps1 -Version $version -OutputDirectory dist/dev
       - name: Upload developer installer
         uses: actions/upload-artifact@v7
