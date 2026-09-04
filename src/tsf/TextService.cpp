@@ -72,11 +72,14 @@ HRESULT TextService::QueryInterface(REFIID riid, void** object) {
 ULONG TextService::AddRef() { return ++refs_; }
 ULONG TextService::Release() { const auto count = --refs_; if (!count) delete this; return count; }
 HRESULT TextService::Activate(ITfThreadMgr* manager, TfClientId id) { return ActivateEx(manager, id, 0); }
-HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
+HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD flags) {
   if (!manager || threadManager_) return E_INVALIDARG;
   InterlockedIncrement(&g_tsfDiagnostics.activationCalls);
   InterlockedExchange(&g_tsfDiagnostics.clientId, static_cast<LONG>(id));
-  TraceTsfEvent(L"ActivateEx");
+  // A modern app can activate a TIP with COM uninitialized or MTA-initialized.
+  // Activation remains safe because this service uses the thread manager and
+  // context objects supplied by TSF; it does not initialize COM itself here.
+  TraceTsfEvent((flags & TF_TMAE_COMLESS) ? L"ActivateExComless" : L"ActivateEx");
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
   const auto adviseHr = AdviseSinks();
   if (SUCCEEDED(adviseHr)) return S_OK;

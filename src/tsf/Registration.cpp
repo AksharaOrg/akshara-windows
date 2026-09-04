@@ -41,8 +41,12 @@ HRESULT RegisterCategories(bool add) {
   ITfCategoryMgr* categories = nullptr;
   auto hr = CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&categories));
   if (FAILED(hr)) return hr;
-  constexpr std::array<const GUID*, 4> values{
+  // COM-less activation is used by current Windows text-input hosts. Akshara's
+  // ActivateEx path deliberately relies only on TSF-provided interfaces, so it
+  // is valid in a thread where COM was not initialized by the host.
+  constexpr std::array<const GUID*, 5> values{
       &GUID_TFCAT_TIP_KEYBOARD,
+      &GUID_TFCAT_TIPCAP_COMLESS,
       &GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
       &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
       &GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT};
