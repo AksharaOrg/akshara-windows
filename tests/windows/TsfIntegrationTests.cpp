@@ -36,6 +36,13 @@ int wmain() {
         GUID_PROFILE_AKSHARA_SMART_PHONETIC, nullptr,
         TF_IPPMF_FORPROCESS | TF_IPPMF_ENABLEPROFILE | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
   }
+  TF_INPUTPROCESSORPROFILE active{};
+  if (SUCCEEDED(hr)) hr = profiles->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &active);
+  if (SUCCEEDED(hr) &&
+      (!IsEqualCLSID(active.clsid, CLSID_AksharaTextService) ||
+       !IsEqualGUID(active.guidProfile, GUID_PROFILE_AKSHARA_SMART_PHONETIC))) {
+    hr = E_FAIL;
+  }
   if (SUCCEEDED(hr)) hr = manager->QueryInterface(IID_PPV_ARGS(&keystrokes));
 
   BOOL eaten = FALSE;
@@ -49,7 +56,12 @@ int wmain() {
   if (manager) { manager->Deactivate(); manager->Release(); }
   CoUninitialize();
 
-  if (FAILED(hr)) return static_cast<int>(HRESULT_CODE(Fail(eaten ? L"TSF key test" : L"Akshara did not intercept M", hr)));
+  if (FAILED(hr)) {
+    const auto* stage = eaten ? L"TSF key test" :
+                        (IsEqualCLSID(active.clsid, CLSID_AksharaTextService) ?
+                         L"Akshara did not intercept M" : L"Akshara did not become the active TIP");
+    return static_cast<int>(HRESULT_CODE(Fail(stage, hr)));
+  }
   std::wcout << L"Akshara TSF integration test passed.\n";
   return 0;
 }

@@ -49,9 +49,20 @@ HRESULT RegisterCategories(bool add) {
   }
   categories->Release(); return hr;
 }
-HRESULT RegisterProfiles(const std::wstring& module) {
+HRESULT RegisterTextServiceAndProfiles(const std::wstring& module) {
+  // Register the service itself before registering its profiles.  Windows can
+  // display a profile that was added without this step, but it will not
+  // reliably instantiate the text service when that profile is selected.
+  ITfInputProcessorProfiles* legacyProfiles = nullptr;
+  auto hr = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
+                             IID_PPV_ARGS(&legacyProfiles));
+  if (FAILED(hr)) return hr;
+  hr = legacyProfiles->Register(CLSID_AksharaTextService);
+  legacyProfiles->Release();
+  if (FAILED(hr)) return hr;
+
   ITfInputProcessorProfileMgr* profiles = nullptr;
-  auto hr = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&profiles));
+  hr = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&profiles));
   if (FAILED(hr)) return hr;
   struct Profile { const GUID* guid; const wchar_t* name; };
   constexpr Profile list[] = {
@@ -75,16 +86,27 @@ HRESULT UnregisterProfiles() {
   for (const auto* profile : list) profiles->UnregisterProfile(CLSID_AksharaTextService, kSinhalaSriLanka, *profile, 0);
   profiles->Release(); return S_OK;
 }
+
+void UnregisterTextService() {
+  ITfInputProcessorProfiles* profiles = nullptr;
+  if (SUCCEEDED(CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
+                                 IID_PPV_ARGS(&profiles)))) {
+    profiles->Unregister(CLSID_AksharaTextService);
+    profiles->Release();
+  }
+}
 }
 
 HRESULT RegisterAkshara() {
   std::wstring module; auto hr = ModulePath(module); if (FAILED(hr)) return hr;
   hr = RegisterComServer(module); if (FAILED(hr)) return hr;
-  hr = RegisterProfiles(module);
-  if (SUCCEEDED(hr)) hr = RegisterCategories(true);
+  // Categories describe the service capabilities to TSF.  They must exist
+  // before profiles are made available to the current user/session.
+  hr = RegisterCategories(true);
+  if (SUCCEEDED(hr)) hr = RegisterTextServiceAndProfiles(module);
   return hr;
 }
 HRESULT UnregisterAkshara() {
-  UnregisterProfiles(); RegisterCategories(false);
+  UnregisterProfiles(); UnregisterTextService(); RegisterCategories(false);
   UnregisterComServer(); return S_OK;
 }
