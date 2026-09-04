@@ -117,6 +117,19 @@ HRESULT TextService::AdviseSinks() {
   keys->Release();
   InterlockedExchange(&g_tsfDiagnostics.keySinkAdviceResult, static_cast<LONG>(hr));
   TraceTsfEvent(L"AdviseKeyEventSink", hr);
+  if (SUCCEEDED(hr)) LogKeySinkForeground();
+  return hr;
+}
+HRESULT TextService::LogKeySinkForeground() {
+  if (!threadManager_) return E_UNEXPECTED;
+  ITfKeystrokeMgr* keys = nullptr;
+  auto hr = threadManager_->QueryInterface(IID_PPV_ARGS(&keys));
+  if (FAILED(hr)) { TraceTsfEvent(L"GetForegroundKeySink", hr); return hr; }
+  CLSID foreground{};
+  hr = keys->GetForeground(&foreground);
+  keys->Release();
+  if (SUCCEEDED(hr) && IsEqualCLSID(foreground, CLSID_AksharaTextService)) TraceTsfEvent(L"AksharaIsForeground", hr);
+  else TraceTsfEvent(L"OtherKeySinkIsForeground", hr);
   return hr;
 }
 HRESULT TextService::AdviseFocusedContext(ITfDocumentMgr* document) {
@@ -302,7 +315,11 @@ HRESULT TextService::ApplyEdit(ITfContext* context, TfEditCookie cookie, bool co
 }
 void TextService::ResetComposition() { ComRelease(composition_); }
 HRESULT TextService::OnCompositionTerminated(TfEditCookie, ITfComposition*) { ResetComposition(); buffer_.clear(); return S_OK; }
-HRESULT TextService::OnSetFocus(BOOL) { return S_OK; }
+HRESULT TextService::OnSetFocus(BOOL foreground) {
+  TraceTsfEvent(foreground ? L"KeySinkGainedFocus" : L"KeySinkLostFocus");
+  if (foreground) LogKeySinkForeground();
+  return S_OK;
+}
 HRESULT TextService::OnPreservedKey(ITfContext*, REFGUID, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnInitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
 HRESULT TextService::OnUninitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
@@ -331,6 +348,7 @@ void TextService::SelectProfile(REFGUID profile) {
 HRESULT TextService::OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) {
   if (clsid == CLSID_AksharaTextService && activated) {
     TraceTsfEvent(L"OnActivated");
+    LogKeySinkForeground();
     if (!buffer_.empty() && threadManager_) {
       ITfDocumentMgr* document = nullptr; ITfContext* context = nullptr;
       if (SUCCEEDED(threadManager_->GetFocus(&document)) && document) document->GetTop(&context);

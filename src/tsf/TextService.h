@@ -46,6 +46,7 @@ class TextService final : public ITfTextInputProcessorEx,
 
  private:
   HRESULT AdviseSinks();
+  HRESULT LogKeySinkForeground();
   HRESULT AdviseFocusedContext(ITfDocumentMgr* document);
   HRESULT AdviseKeyboardOpenCompartment();
   void UnadviseFocusedContext();
