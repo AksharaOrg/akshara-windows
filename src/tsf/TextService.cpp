@@ -3,9 +3,36 @@
 #include "Globals.h"
 
 #include <new>
+#include <string>
 
 namespace {
 template<class T> void ComRelease(T*& value) { if (value) { value->Release(); value = nullptr; } }
+
+// Developer setup diagnostics intentionally record lifecycle events only—never
+// keys or text.  They make it possible to distinguish Windows routing failures
+// from composition failures when the service runs inside another application.
+void TraceTsfEvent(const wchar_t* event, HRESULT result = S_OK) {
+  wchar_t localAppData[MAX_PATH]{};
+  const auto length = GetEnvironmentVariableW(L"LOCALAPPDATA", localAppData, _countof(localAppData));
+  if (!length || length >= _countof(localAppData)) return;
+  const std::wstring directory = std::wstring(localAppData, length) + L"\\Akshara";
+  CreateDirectoryW(directory.c_str(), nullptr);
+  const std::wstring path = directory + L"\\tsf-diagnostics.log";
+  const auto file = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) return;
+  wchar_t process[MAX_PATH]{};
+  GetModuleFileNameW(nullptr, process, _countof(process));
+  wchar_t line[768]{};
+  const auto written = swprintf_s(line, L"pid=%lu process=%ls event=%ls result=0x%08lX\r\n",
+                                  GetCurrentProcessId(), process, event,
+                                  static_cast<unsigned long>(result));
+  if (written > 0) {
+    DWORD bytes{};
+    WriteFile(file, line, static_cast<DWORD>(written * sizeof(wchar_t)), &bytes, nullptr);
+  }
+  CloseHandle(file);
+}
 
 bool IsBoundary(WPARAM key) {
   switch (key) {
@@ -46,6 +73,7 @@ HRESULT TextService::ActivateEx(ITfThreadMgr* manager, TfClientId id, DWORD) {
   if (!manager || threadManager_) return E_INVALIDARG;
   InterlockedIncrement(&g_tsfDiagnostics.activationCalls);
   InterlockedExchange(&g_tsfDiagnostics.clientId, static_cast<LONG>(id));
+  TraceTsfEvent(L"ActivateEx");
   threadManager_ = manager; manager->AddRef(); clientId_ = id;
   const auto adviseHr = AdviseSinks();
   if (SUCCEEDED(adviseHr)) return S_OK;
@@ -67,6 +95,7 @@ HRESULT TextService::AdviseSinks() {
   if (FAILED(queryHr)) return queryHr;
   const auto keyHr = keys->AdviseKeyEventSink(clientId_, this, TRUE); keys->Release();
   InterlockedExchange(&g_tsfDiagnostics.keySinkAdviceResult, static_cast<LONG>(keyHr));
+  TraceTsfEvent(L"AdviseKeyEventSink", keyHr);
   if (FAILED(keyHr)) return keyHr;
 
   // Keystroke delivery is the only sink required for basic IME operation.
@@ -126,7 +155,8 @@ bool TextService::ShouldEatKey(ITfContext* context, WPARAM key) const {
   return key >= 'A' && key <= 'Z';
 }
 HRESULT TextService::OnTestKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL* eaten) {
-  InterlockedIncrement(&g_tsfDiagnostics.testKeyDownCalls);
+  const auto calls = InterlockedIncrement(&g_tsfDiagnostics.testKeyDownCalls);
+  if (calls == 1) TraceTsfEvent(L"OnTestKeyDown");
   const bool writable = IsContextWritable(context);
   InterlockedExchange(&g_tsfDiagnostics.lastContextWasWritable, writable);
   if (!eaten) return E_POINTER;
@@ -138,7 +168,8 @@ HRESULT TextService::OnTestKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if 
 HRESULT TextService::OnKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL* eaten) {
   if (!eaten) return E_POINTER;
-  InterlockedIncrement(&g_tsfDiagnostics.keyDownCalls);
+  const auto calls = InterlockedIncrement(&g_tsfDiagnostics.keyDownCalls);
+  if (calls == 1) TraceTsfEvent(L"OnKeyDown");
   *eaten = HandleKey(context, key);
   InterlockedExchange(&g_tsfDiagnostics.lastKeyWasEaten, *eaten);
   return S_OK;
