@@ -62,6 +62,7 @@ HRESULT TextService::QueryInterface(REFIID riid, void** object) {
   else if (riid == IID_ITfKeyEventSink) *object = static_cast<ITfKeyEventSink*>(this);
   else if (riid == IID_ITfCompositionSink) *object = static_cast<ITfCompositionSink*>(this);
   else if (riid == IID_ITfThreadMgrEventSink) *object = static_cast<ITfThreadMgrEventSink*>(this);
+  else if (riid == IID_ITfThreadFocusSink) *object = static_cast<ITfThreadFocusSink*>(this);
   else if (riid == IID_ITfActiveLanguageProfileNotifySink) *object = static_cast<ITfActiveLanguageProfileNotifySink*>(this);
   if (!*object) return E_NOINTERFACE;
   AddRef(); return S_OK;
@@ -111,6 +112,11 @@ HRESULT TextService::AdviseSinks() {
     TraceTsfEvent(L"AdviseThreadMgrEventSink", threadHr);
     if (FAILED(threadHr)) {
       threadSinkCookie_ = TF_INVALID_COOKIE;
+    }
+    const auto threadFocusHr = source->AdviseSink(IID_ITfThreadFocusSink, static_cast<ITfThreadFocusSink*>(this), &threadFocusSinkCookie_);
+    TraceTsfEvent(L"AdviseThreadFocusSink", threadFocusHr);
+    if (FAILED(threadFocusHr)) {
+      threadFocusSinkCookie_ = TF_INVALID_COOKIE;
     }
     const auto profileHr = source->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(this), &profileSinkCookie_);
     TraceTsfEvent(L"AdviseProfileNotifySink", profileHr);
@@ -164,10 +170,11 @@ void TextService::UnadviseSinks() {
   ITfSource* source = nullptr;
   if (SUCCEEDED(threadManager_->QueryInterface(IID_PPV_ARGS(&source)))) {
     if (threadSinkCookie_ != TF_INVALID_COOKIE) source->UnadviseSink(threadSinkCookie_);
+    if (threadFocusSinkCookie_ != TF_INVALID_COOKIE) source->UnadviseSink(threadFocusSinkCookie_);
     if (profileSinkCookie_ != TF_INVALID_COOKIE) source->UnadviseSink(profileSinkCookie_);
     source->Release();
   }
-  threadSinkCookie_ = profileSinkCookie_ = TF_INVALID_COOKIE;
+  threadSinkCookie_ = threadFocusSinkCookie_ = profileSinkCookie_ = TF_INVALID_COOKIE;
 }
 bool TextService::IsContextWritable(ITfContext* context) const {
   TF_STATUS status{};
@@ -283,6 +290,11 @@ HRESULT TextService::OnInitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
 HRESULT TextService::OnUninitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
 HRESULT TextService::OnPushContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnPopContext(ITfContext*) { return S_OK; }
+HRESULT TextService::OnSetThreadFocus() {
+  TraceTsfEvent(L"OnSetThreadFocus");
+  return EnsureKeyEventSinkForeground();
+}
+HRESULT TextService::OnKillThreadFocus() { TraceTsfEvent(L"OnKillThreadFocus"); return S_OK; }
 HRESULT TextService::OnSetFocus(ITfDocumentMgr*, ITfDocumentMgr* previous) {
   TraceTsfEvent(L"OnSetFocus");
   EnsureKeyEventSinkForeground();

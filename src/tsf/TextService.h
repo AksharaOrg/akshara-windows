@@ -9,6 +9,7 @@ class TextService final : public ITfTextInputProcessorEx,
                           public ITfKeyEventSink,
                           public ITfCompositionSink,
                           public ITfThreadMgrEventSink,
+                          public ITfThreadFocusSink,
                           public ITfActiveLanguageProfileNotifySink {
  public:
   TextService();
@@ -33,6 +34,8 @@ class TextService final : public ITfTextInputProcessorEx,
   STDMETHODIMP OnSetFocus(ITfDocumentMgr* focus, ITfDocumentMgr* previous) override;
   STDMETHODIMP OnPushContext(ITfContext*) override;
   STDMETHODIMP OnPopContext(ITfContext*) override;
+  STDMETHODIMP OnSetThreadFocus() override;
+  STDMETHODIMP OnKillThreadFocus() override;
   STDMETHODIMP OnActivated(REFCLSID clsid, REFGUID profile, BOOL activated) override;
 
   HRESULT ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commitOnly);
@@ -53,6 +56,7 @@ class TextService final : public ITfTextInputProcessorEx,
   ITfThreadMgr* threadManager_{};
   TfClientId clientId_{TF_CLIENTID_NULL};
   DWORD threadSinkCookie_{TF_INVALID_COOKIE};
+  DWORD threadFocusSinkCookie_{TF_INVALID_COOKIE};
   DWORD profileSinkCookie_{TF_INVALID_COOKIE};
   ITfComposition* composition_{};
   akshara::AksharaEngine engine_;
