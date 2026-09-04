@@ -41,6 +41,7 @@
 
     <CustomAction Id="RegisterX64" FileRef="X64Register" ExeCommand='install &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
     <CustomAction Id="RegisterX86" FileRef="X86Register" ExeCommand='install &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="EnableSmartForInstallingUser" FileRef="X64Register" ExeCommand="enable smart" Execute="deferred" Impersonate="yes" Return="check" />
     <CustomAction Id="UnregisterX64" FileRef="X64Register" ExeCommand='uninstall &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
     <CustomAction Id="UnregisterX86" FileRef="X86Register" ExeCommand='uninstall &quot;[X86DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="ignore" />
     <InstallExecuteSequence>
@@ -48,6 +49,7 @@
       <Custom Action="UnregisterX64" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot;" />
       <Custom Action="RegisterX64" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
       <Custom Action="RegisterX86" After="RegisterX64" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="EnableSmartForInstallingUser" After="RegisterX86" Condition="NOT Installed OR REINSTALL" />
     </InstallExecuteSequence>
     <Feature Id="Complete" Title="Akshara" Level="1"><ComponentGroupRef Id="Payload" /></Feature>
   </Package>

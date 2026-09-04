@@ -7,6 +7,7 @@
 
 namespace {
 using ReadDiagnostics = void(__stdcall*)(AksharaTsfDiagnostics* diagnostics);
+using InstallLayoutOrTip = BOOL(WINAPI*)(LPCWSTR, DWORD);
 
 HRESULT Fail(const wchar_t* stage, HRESULT hr) {
   std::wcerr << stage << L" failed: 0x" << std::hex << static_cast<unsigned long>(hr) << L"\n";
@@ -26,6 +27,13 @@ int wmain() {
   TfClientId clientId = TF_CLIENTID_NULL;
   TfEditCookie cookie{};
   HRESULT hr = CoCreateInstance(CLSID_TF_ThreadMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&manager));
+  const auto input = LoadLibraryExW(L"input.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+  const auto installLayoutOrTip = input ? reinterpret_cast<InstallLayoutOrTip>(
+      GetProcAddress(input, "InstallLayoutOrTip")) : nullptr;
+  if (SUCCEEDED(hr) && (!installLayoutOrTip || !installLayoutOrTip(
+      L"0x045B:{8B8E29C7-E118-4C77-9F58-525784EFB9C1}{D602E665-86AD-42DF-9A67-B8B17515B172}", 0))) {
+    hr = HRESULT_FROM_WIN32(GetLastError());
+  }
   if (SUCCEEDED(hr)) hr = manager->Activate(&clientId);
   if (SUCCEEDED(hr)) hr = manager->CreateDocumentMgr(&document);
   if (SUCCEEDED(hr)) hr = document->CreateContext(clientId, 0, nullptr, &context, &cookie);
@@ -62,6 +70,7 @@ int wmain() {
   if (context) context->Release();
   if (document) document->Release();
   if (manager) { manager->Deactivate(); manager->Release(); }
+  if (input) FreeLibrary(input);
   CoUninitialize();
 
   if (FAILED(hr)) {
