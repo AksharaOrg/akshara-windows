@@ -49,6 +49,12 @@ bool IsOemOrLetter(WPARAM key) {
          key == VK_OEM_PERIOD || key == VK_OEM_2 || key == VK_OEM_3 || key == VK_OEM_4 ||
          key == VK_OEM_5 || key == VK_OEM_6 || key == VK_OEM_7;
 }
+bool IsCommitThenPassThroughKey(WPARAM key) {
+  return IsBoundary(key) || (key >= '0' && key <= '9') ||
+         key == VK_OEM_1 || key == VK_OEM_PLUS || key == VK_OEM_COMMA || key == VK_OEM_MINUS ||
+         key == VK_OEM_PERIOD || key == VK_OEM_2 || key == VK_OEM_3 || key == VK_OEM_4 ||
+         key == VK_OEM_5 || key == VK_OEM_6 || key == VK_OEM_7;
+}
 }
 
 TextService::TextService() { InterlockedIncrement(&g_objectCount); }
@@ -245,6 +251,13 @@ HRESULT TextService::OnTestKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL
   InterlockedExchange(&g_tsfDiagnostics.lastContextWasWritable, writable);
   if (!eaten) return E_POINTER;
   *eaten = writable && ShouldEatKey(context, key);
+  // TSF does not have to call OnKeyDown after a key is passed through. Commit
+  // an active composition while testing a delimiter, then let the application
+  // receive that delimiter (for example: "amma" followed by Space).
+  if (!*eaten && writable && !buffer_.empty() && IsCommitThenPassThroughKey(key)) {
+    const auto commitHr = RequestEdit(context, true);
+    TraceTsfEvent(L"CommitBeforePassThrough", commitHr);
+  }
   InterlockedExchange(&g_tsfDiagnostics.lastKeyWasEaten, *eaten);
   return S_OK;
 }

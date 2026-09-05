@@ -15,6 +15,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(MSVC)
+  # A TIP is loaded into arbitrary application processes. Statically link the
+  # C++ runtime so the installer does not depend on a separately installed VC++
+  # redistributable on supported Windows 10/11 machines.
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/utf-8>)
 endif()
 
