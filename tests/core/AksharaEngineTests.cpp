@@ -70,6 +70,17 @@ int main() {
   expectMode(engine, InputMode::SmartPhonetic, "N", "ණ්");
   expectMode(engine, InputMode::SmartPhonetic, "kru", "කෘ");
   expectMode(engine, InputMode::SmartPhonetic, "kruu", "කෲ");
+  // Smart Phonetic cases come directly from the Mac rule tables.  These
+  // distinguish its intentionally different capitals and sanyaka sequences.
+  expectMode(engine, InputMode::SmartPhonetic, "A", "ඇ");
+  expectMode(engine, InputMode::SmartPhonetic, "Aa", "ඈ");
+  expectMode(engine, InputMode::SmartPhonetic, "aa", "ආ");
+  expectMode(engine, InputMode::SmartPhonetic, "chh", "ඡ්");
+  expectMode(engine, InputMode::SmartPhonetic, "thh", "ථ්");
+  expectMode(engine, InputMode::SmartPhonetic, "zdh", "ඳ්");
+  expectMode(engine, InputMode::SmartPhonetic, "zn", "ං");
+  expectMode(engine, InputMode::SmartPhonetic, "z", "");
+  expectMode(engine, InputMode::SmartPhonetic, "kya", "ක්‍ය");
   expect("kombuva", akshara::unicode::normalizeWijesekara(u"ෙකා"), u"කො");
   expect("kombuva-long", akshara::unicode::normalizeWijesekara(u"ෙකා්"), u"කෝ");
   expect("double-kombuva", akshara::unicode::normalizeWijesekara(u"ෙෙක"), u"කෛ");

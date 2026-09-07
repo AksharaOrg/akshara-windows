@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-set(AKSHARA_VERSION "0.1.0" CACHE STRING "Akshara semantic version")
+set(AKSHARA_VERSION "0.0.6" CACHE STRING "Akshara semantic version")
 project(AksharaWindows VERSION ${AKSHARA_VERSION} LANGUAGES CXX)
 
 set(AKSHARA_VERSION_STRING "${PROJECT_VERSION}")
@@ -23,7 +23,7 @@ if(MSVC)
 endif()
 
 option(AKSHARA_BUILD_TESTS "Build portable core tests" ON)
-option(AKSHARA_BUILD_WINDOWS_COMPONENTS "Build TSF and Help executables" ${WIN32})
+option(AKSHARA_BUILD_WINDOWS_COMPONENTS "Build TSF and Settings executables" ${WIN32})
 
 add_library(akshara_core STATIC
   src/core/AksharaEngine.cpp
@@ -53,9 +53,11 @@ if(WIN32 AND AKSHARA_BUILD_WINDOWS_COMPONENTS)
   target_compile_options(AksharaIME PRIVATE /W4 /WX /permissive- /sdl /guard:cf)
   target_link_options(AksharaIME PRIVATE /DYNAMICBASE /NXCOMPAT /GUARD:CF)
 
-  add_executable(AksharaHelp WIN32 src/help/main.cpp src/help/AksharaHelp.rc)
-  target_compile_definitions(AksharaHelp PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-  target_link_libraries(AksharaHelp PRIVATE comctl32 shell32)
+  add_executable(AksharaSettings WIN32 src/settings/main.cpp src/settings/AksharaSettings.rc)
+  target_compile_definitions(AksharaSettings PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(AksharaSettings PRIVATE /W4 /WX /permissive- /sdl /guard:cf)
+  target_link_options(AksharaSettings PRIVATE /DYNAMICBASE /NXCOMPAT /GUARD:CF)
+  target_link_libraries(AksharaSettings PRIVATE ole32 shell32 advapi32 uuid)
 
   add_executable(AksharaRegister src/setup-helper/main.cpp)
   target_compile_definitions(AksharaRegister PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)

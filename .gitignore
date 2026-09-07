@@ -9,4 +9,6 @@
 *.VC.opendb
 installer/bin/
 installer/obj/
+src/settings/bin/
+src/settings/obj/
 /docs/

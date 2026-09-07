@@ -41,11 +41,12 @@ HRESULT RegisterCategories(bool add) {
   ITfCategoryMgr* categories = nullptr;
   auto hr = CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&categories));
   if (FAILED(hr)) return hr;
-  // COM-less activation is used by current Windows text-input hosts. Akshara's
-  // ActivateEx path deliberately relies only on TSF-provided interfaces, so it
-  // is valid in a thread where COM was not initialized by the host.
-  constexpr std::array<const GUID*, 5> values{
+  // This is the capability set used by Microsoft's current SampleIME, less
+  // UI-element support because Akshara has no candidate UI to advertise.
+  // Do not add a category unless the implementation provides that capability.
+  constexpr std::array<const GUID*, 6> values{
       &GUID_TFCAT_TIP_KEYBOARD,
+      &GUID_TFCAT_TIPCAP_SECUREMODE,
       &GUID_TFCAT_TIPCAP_COMLESS,
       &GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,
       &GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
@@ -108,10 +109,11 @@ void UnregisterTextService() {
 HRESULT RegisterAkshara() {
   std::wstring module; auto hr = ModulePath(module); if (FAILED(hr)) return hr;
   hr = RegisterComServer(module); if (FAILED(hr)) return hr;
-  // Categories describe the service capabilities to TSF.  They must exist
-  // before profiles are made available to the current user/session.
-  hr = RegisterCategories(true);
-  if (SUCCEEDED(hr)) hr = RegisterTextServiceAndProfiles(module);
+  // Follow the Microsoft SampleIME installation order.  On a failure, remove
+  // the partial registration rather than leaving a selectable broken profile.
+  hr = RegisterTextServiceAndProfiles(module);
+  if (SUCCEEDED(hr)) hr = RegisterCategories(true);
+  if (FAILED(hr)) UnregisterAkshara();
   return hr;
 }
 HRESULT UnregisterAkshara() {

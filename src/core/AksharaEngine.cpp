@@ -46,6 +46,9 @@ const MappingTrie& smartConsonants() {
 
 const MappingTrie& smartVowels() {
   static const MappingTrie trie({
+    // These tables intentionally mirror src/SmartPhoneticMaps.m in the Mac
+    // implementation.  Keep keys and their case significant: e.g. A is ඇ,
+    // while Aa/AA are ඇ; R is the independent vocalic r.
     {u"ruu",u"\tෲ"},{u"Aa",u"ඈ\tෑ"},{u"AA",u"ඈ\tෑ"},{u"aa",u"ආ\tා"},{u"ii",u"ඊ\tී"},
     {u"uu",u"ඌ\tූ"},{u"UU",u"ඌ\tූ"},{u"Uu",u"ඌ\tූ"},{u"ee",u"ඒ\tේ"},{u"ai",u"ඓ\tෛ"},
     {u"oo",u"ඕ\tෝ"},{u"OO",u"ඕ\tෝ"},{u"Oo",u"ඕ\tෝ"},{u"au",u"ඖ\tෞ"},{u"ou",u"ඖ\tෞ"},

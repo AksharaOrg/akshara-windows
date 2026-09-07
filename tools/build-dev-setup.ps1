@@ -1,6 +1,6 @@
 param(
   [ValidatePattern('^\d+\.\d+\.\d+$')]
-  [string]$Version = '0.1.0',
+  [string]$Version = '0.0.6',
   [string]$OutputDirectory = 'dist/dev',
   [string]$AcceptEula = $env:WIX_ACCEPT_EULA
 )
@@ -22,7 +22,7 @@ try {
   $payloadRoot = Join-Path $repositoryRoot 'build/payload'
   New-Item -ItemType Directory -Force "$payloadRoot/x86", "$payloadRoot/x64" | Out-Null
   Copy-Item build/x86/Release/AksharaIME.dll, build/x86/Release/AksharaRegister.exe "$payloadRoot/x86/" -Force
-  Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe, build/x64/Release/AksharaHelp.exe "$payloadRoot/x64/" -Force
+  Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe, build/x64/Release/AksharaSettings.exe "$payloadRoot/x64/" -Force
 
   $outputPath = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $repositoryRoot $OutputDirectory }
   $resolvedOutput = [IO.Path]::GetFullPath($outputPath)

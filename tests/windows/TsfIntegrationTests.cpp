@@ -31,7 +31,7 @@ int wmain() {
   const auto installLayoutOrTip = input ? reinterpret_cast<InstallLayoutOrTip>(
       GetProcAddress(input, "InstallLayoutOrTip")) : nullptr;
   if (SUCCEEDED(hr) && (!installLayoutOrTip || !installLayoutOrTip(
-      L"0x045B:{8B8E29C7-E118-4C77-9F58-525784EFB9C1}{D602E665-86AD-42DF-9A67-B8B17515B172}", 0))) {
+      L"0x045B:{4F06B8D9-27FC-4A9B-88A7-2503B8F075C4}{303B8D4E-BEFB-4708-95A8-99D79998688A}", 0))) {
     hr = HRESULT_FROM_WIN32(GetLastError());
   }
   if (SUCCEEDED(hr)) hr = manager->Activate(&clientId);

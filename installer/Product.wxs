@@ -12,7 +12,8 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="X64ROOT" Name="Akshara">
         <Directory Id="X64DIR" Name="x64" />
-        <Directory Id="HELPDIR" Name="help" />
+        <Directory Id="LEGACYHELPDIR" Name="help" />
+        <Directory Id="SETTINGSDIR" Name="settings" />
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramFilesFolder">
@@ -31,11 +32,16 @@
         <File Id="X86Dll" Source="$(var.PayloadRoot)\x86\AksharaIME.dll" KeyPath="yes" />
         <File Id="X86Register" Source="$(var.PayloadRoot)\x86\AksharaRegister.exe" />
       </Component>
-      <Component Directory="HELPDIR" Id="HelpApp" Guid="E011C5C1-B9C1-4654-A49D-C5FE9244277F" Bitness="always64">
-        <File Id="HelpExe" Source="$(var.PayloadRoot)\x64\AksharaHelp.exe" KeyPath="yes">
-          <Shortcut Id="HelpShortcut" Directory="MenuDir" Name="Akshara Help" WorkingDirectory="HELPDIR" Advertise="yes" />
+      <Component Directory="SETTINGSDIR" Id="SettingsApp" Guid="9150B4DB-B2C0-44A0-9DD6-0DF08B7D1FF8" Bitness="always64">
+        <File Id="SettingsExe" Source="$(var.PayloadRoot)\x64\AksharaSettings.exe" KeyPath="yes">
+          <Shortcut Id="SettingsShortcut" Directory="MenuDir" Name="Akshara" WorkingDirectory="SETTINGSDIR" Advertise="yes" />
         </File>
         <RemoveFolder Id="RemoveMenuDir" Directory="MenuDir" On="uninstall" />
+        <!-- These files predate the single-app installer and therefore are
+             not owned by this MSI. Remove them during every upgrade. -->
+        <RemoveFile Id="RemoveLegacyHelpExe" Directory="LEGACYHELPDIR" Name="AksharaHelp.exe" On="install" />
+        <RemoveFolder Id="RemoveLegacyHelpDirectory" Directory="LEGACYHELPDIR" On="install" />
+        <RemoveFile Id="RemoveLegacyHelpShortcut" Directory="MenuDir" Name="Akshara Help.lnk" On="install" />
       </Component>
     </ComponentGroup>
 

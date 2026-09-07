@@ -4,6 +4,10 @@ Akshara is a native, private Sinhala input method for Windows 10 and Windows 11.
 
 Typing is processed entirely offline. The TSF DLL contains no networking, telemetry, updater, or typed-text persistence.
 
+## Settings
+
+The installer adds **Akshara Settings** to the Start menu. It follows the Windows Settings visual style and lets each user select Smart Phonetic, Classic Phonetic, or Wijesekara without administrator privileges. The selected mode is also available through **Windows + Space**.
+
 ## Build
 
 Portable core (macOS/Linux):
