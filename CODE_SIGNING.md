@@ -8,7 +8,8 @@ Repository configuration:
 - variables: `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG`
 - artifact variables: `SIGNPATH_PE_ARTIFACT_CONFIGURATION_SLUG`, `SIGNPATH_MSI_ARTIFACT_CONFIGURATION_SLUG`, `SIGNPATH_EXE_ARTIFACT_CONFIGURATION_SLUG`
 
+Store these values in the protected `release-signing` GitHub Environment and restrict deployment access to release maintainers. The workflow validates every required value before compiling release artifacts.
+
 The workflow uses `signpath/github-action-submit-signing-request@v2` and GitHub-hosted runners. Signing order is x86/x64 PE payloads, MSI, then offline bundle EXE. Each stage is immutable after signing and is checked with `signtool verify /pa /all /v`, including timestamp presence.
 
 If SignPath Foundation does not accept the project or a maintainer-owned publisher name is required, use an OV certificate backed by a CA cloud/HSM service whose chain is in Microsoft's Trusted Root Program. Do not store an exportable production PFX as a plain GitHub secret.
-

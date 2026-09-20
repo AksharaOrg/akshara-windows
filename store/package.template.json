@@ -3,10 +3,9 @@
     {
       "packageUrl": "https://github.com/AksharaOrg/akshara-windows/releases/download/v0.0.0/Akshara-Windows-v0.0.0-Setup.exe",
       "languages": ["en"],
-      "architectures": ["X86", "X64"],
+      "architectures": ["X64"],
       "isSilentInstall": true,
       "installerParameters": "/quiet /norestart"
     }
   ]
 }
-

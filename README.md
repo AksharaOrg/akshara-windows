@@ -8,6 +8,19 @@ Typing is processed entirely offline. The TSF DLL contains no networking, teleme
 
 The installer adds **Akshara Settings** to the Start menu. It follows the Windows Settings visual style and lets each user select Smart Phonetic, Classic Phonetic, or Wijesekara without administrator privileges. The selected mode is also available through **Windows + Space**.
 
+The Typing page controls when an active composition is committed. Changes are picked up when an application or Akshara input profile receives focus.
+
+## Install and use
+
+Akshara supports 64-bit Windows 10 and Windows 11. The installer includes both x64 and x86 text-service DLLs so Akshara works in 64-bit and 32-bit applications on a 64-bit system. ARM64 is compile-checked but is not currently distributed as a native package.
+
+1. Download the signed `Akshara-Windows-vMAJOR.MINOR.PATCH-Setup.exe` from GitHub Releases and run it as an administrator.
+2. Restart applications that were open during installation.
+3. Press **Windows + Space** and select an Akshara input method. Smart Phonetic is recommended for new users.
+4. Open **Akshara** from the Start menu to switch profiles or change composition settings.
+
+Akshara does not contain an updater. Install a newer signed release over the existing version to upgrade. Remove it from **Settings > Apps > Installed apps**, or run the same setup executable with `/uninstall`.
+
 ## Build
 
 Portable core (macOS/Linux):
@@ -50,3 +63,5 @@ $env:WIX_ACCEPT_EULA = 'wix7'
 ```
 
 The setup, MSI, and SHA-256 checksums are written to `dist/dev`. Production releases continue to use the signed tag workflow described in [CODE_SIGNING.md](CODE_SIGNING.md).
+
+Microsoft Store submission is dispatched after a signed GitHub Release is published. It requires a protected `microsoft-store` environment with the Partner Center credentials and product ID referenced by `.github/workflows/store.yml`.

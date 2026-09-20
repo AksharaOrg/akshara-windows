@@ -213,6 +213,14 @@ bool TextService::IsHandledKey(WPARAM key) const {
   const bool altGr = ctrl && alt && (GetKeyState(VK_RMENU) & 0x8000) != 0;
   if ((ctrl || alt) && !(buffer_.mode() == akshara::InputMode::Wijesekara && altGr)) return false;
   if (key == VK_BACK) return !buffer_.empty();
+  // AltGr+Space is the public SLS 1134 ZWNJ entry. It must reach the
+  // Wijesekara mapper before the ordinary Space boundary handling below.
+  if (key == VK_SPACE && buffer_.mode() == akshara::InputMode::Wijesekara && altGr) return true;
+  // Own an ordinary Space only while composing so the rendered word and its
+  // trailing boundary can be committed atomically in one TSF edit session.
+  if (key == VK_SPACE) return !buffer_.empty();
+  if (buffer_.mode() != akshara::InputMode::Wijesekara && !buffer_.empty() &&
+      preferences_.commitOnPunctuation && isPunctuation(key)) return TranslateKey(key).has_value();
   if (isBoundary(key)) return false;
   if (buffer_.mode() == akshara::InputMode::Wijesekara)
     return (key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') || isOem(key) || key == VK_PACKET;
@@ -245,7 +253,9 @@ HRESULT TextService::OnKeyDown(ITfContext* context, WPARAM key, LPARAM, BOOL* ea
 HRESULT TextService::OnTestKeyDown(WPARAM key, LPARAM, BOOL* eaten) {
   if (!eaten) return E_POINTER;
   InterlockedIncrement(&g_tsfDiagnostics.testKeyDownCalls);
-  *eaten = profileActive_ && !IsKeyboardDisabled() && IsContextWritable(contextKeyContext_) && IsHandledKey(key);
+  const bool writable = profileActive_ && !IsKeyboardDisabled() && IsContextWritable(contextKeyContext_);
+  *eaten = writable && IsHandledKey(key);
+  if (!*eaten && writable && !buffer_.empty() && ShouldCommitOnBoundary(key)) RequestEdit(contextKeyContext_, true);
   InterlockedExchange(&g_tsfDiagnostics.lastKeyWasEaten, *eaten);
   return S_OK;
 }
@@ -261,14 +271,27 @@ HRESULT TextService::OnKeyUp(WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E
 bool TextService::HandleKey(ITfContext* context, WPARAM key) {
   if (!IsHandledKey(key)) return false;
   if (key == VK_BACK) { buffer_.backspace(); RequestEdit(context, false); return true; }
+  const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+  const bool alt = (GetKeyState(VK_MENU) & 0x8000) != 0;
+  const bool altGr = ctrl && alt && (GetKeyState(VK_RMENU) & 0x8000) != 0;
+  if (key == VK_SPACE && !altGr) {
+    RequestEdit(context, true, u" ");
+    return true;
+  }
+  if (buffer_.mode() != akshara::InputMode::Wijesekara && preferences_.commitOnPunctuation && isPunctuation(key)) {
+    const auto punctuation = TranslateKey(key);
+    if (!punctuation) return false;
+    RequestEdit(context, true, std::u16string_view(&*punctuation, 1));
+    return true;
+  }
   if (buffer_.mode() == akshara::InputMode::Wijesekara) {
     const auto translated = TranslateKey(key);
     const bool shift = key == VK_PACKET && translated ? (*translated >= u'A' && *translated <= u'Z') : (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-    const bool altGr = (GetKeyState(VK_CONTROL) & 0x8000) != 0 && (GetKeyState(VK_RMENU) & 0x8000) != 0;
+    const bool wijesekaraAltGr = (GetKeyState(VK_CONTROL) & 0x8000) != 0 && (GetKeyState(VK_RMENU) & 0x8000) != 0;
     const auto virtualKey = key == VK_PACKET && translated
         ? static_cast<std::uint32_t>((*translated >= u'a' && *translated <= u'z') ? *translated - u'a' + u'A' : *translated)
         : static_cast<std::uint32_t>(key);
-    const auto input = engine_.mapWijesekaraKey({virtualKey, shift, altGr});
+    const auto input = engine_.mapWijesekaraKey({virtualKey, shift, wijesekaraAltGr});
     if (input.empty()) return false;
     buffer_.append(input);
   } else {
@@ -279,17 +302,39 @@ bool TextService::HandleKey(ITfContext* context, WPARAM key) {
   RequestEdit(context, false);
   return true;
 }
-HRESULT TextService::RequestEdit(ITfContext* context, bool commit) {
+HRESULT TextService::RequestEdit(ITfContext* context, bool commit, std::u16string_view commitSuffix) {
   if (!context) return E_INVALIDARG;
-  auto* session = new (std::nothrow) EditSession(this, context, commit);
+  auto* session = new (std::nothrow) EditSession(this, context, commit, std::u16string(commitSuffix));
   if (!session) return E_OUTOFMEMORY;
   HRESULT sessionResult = E_FAIL;
   const auto hr = context->RequestEditSession(clientId_, session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE, &sessionResult);
   session->Release();
   return FAILED(hr) ? hr : sessionResult;
 }
-HRESULT TextService::ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commit) {
+HRESULT TextService::ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commit, std::u16string_view commitSuffix) {
   if (commit) {
+    if (!commitSuffix.empty()) {
+      auto text = buffer_.render(engine_).text;
+      text.append(commitSuffix);
+      ITfRange* range = nullptr;
+      HRESULT textHr = E_FAIL;
+      if (composition_) {
+        textHr = composition_->GetRange(&range);
+        if (SUCCEEDED(textHr) && range)
+          textHr = range->SetText(cookie, 0, reinterpret_cast<const WCHAR*>(text.data()), static_cast<LONG>(text.size()));
+        else if (SUCCEEDED(textHr))
+          textHr = E_FAIL;
+      } else {
+        ITfInsertAtSelection* insert = nullptr;
+        textHr = context->QueryInterface(IID_PPV_ARGS(&insert));
+        if (SUCCEEDED(textHr)) {
+          textHr = insert->InsertTextAtSelection(cookie, 0, reinterpret_cast<const WCHAR*>(text.data()), static_cast<LONG>(text.size()), &range);
+          insert->Release();
+        }
+      }
+      if (range) range->Release();
+      if (FAILED(textHr)) return textHr;
+    }
     if (composition_) composition_->EndComposition(cookie);
     ResetComposition(); buffer_.clear();
     return S_OK;
@@ -320,7 +365,10 @@ HRESULT TextService::ApplyEdit(ITfContext* context, TfEditCookie cookie, bool co
 }
 void TextService::ResetComposition() { release(composition_); }
 HRESULT TextService::OnCompositionTerminated(TfEditCookie, ITfComposition*) { ResetComposition(); buffer_.clear(); return S_OK; }
-HRESULT TextService::OnSetFocus(BOOL) { return S_OK; }
+HRESULT TextService::OnSetFocus(BOOL foreground) {
+  if (foreground) preferences_ = akshara::preferences::Load();
+  return S_OK;
+}
 HRESULT TextService::OnTestKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnKeyUp(ITfContext*, WPARAM, LPARAM, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
 HRESULT TextService::OnPreservedKey(ITfContext*, REFGUID, BOOL* eaten) { if (!eaten) return E_POINTER; *eaten = FALSE; return S_OK; }
@@ -329,6 +377,7 @@ HRESULT TextService::OnUninitDocumentMgr(ITfDocumentMgr*) { return S_OK; }
 HRESULT TextService::OnPushContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnPopContext(ITfContext*) { return S_OK; }
 HRESULT TextService::OnSetFocus(ITfDocumentMgr* focus, ITfDocumentMgr* previous) {
+  preferences_ = akshara::preferences::Load();
   const auto hr = AdviseFocusedContext(focus);
   if (!previous) { ResetComposition(); buffer_.clear(); }
   return hr;

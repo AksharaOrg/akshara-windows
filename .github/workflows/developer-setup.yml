@@ -36,13 +36,13 @@ jobs:
           }
           ./tools/build-dev-setup.ps1 -Version $version -OutputDirectory dist/dev
       - name: Install and verify developer setup
-        continue-on-error: true
         shell: pwsh
         run: |
           $bundle = (Get-ChildItem dist/dev/*-Setup.exe | Select-Object -First 1).FullName
           ./tools/verify-install.ps1 -Bundle $bundle
           & build/x64/Release/akshara_tsf_integration_tests.exe
           if ($LASTEXITCODE -ne 0) { throw "Akshara TSF integration test failed: $LASTEXITCODE" }
+          ./tools/verify-install.ps1 -Bundle $bundle -Uninstall
       - name: Upload developer installer
         uses: actions/upload-artifact@v7
         with:

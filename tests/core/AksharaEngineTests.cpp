@@ -63,6 +63,9 @@ int main() {
   expectMode(engine, InputMode::Phonetic, "amma", "අම්ම");
   expectMode(engine, InputMode::Phonetic, "mama", "මම");
   expectMode(engine, InputMode::Phonetic, "siMhala", "සිංහල");
+  expectMode(engine, InputMode::Phonetic, "ka", "ක");
+  expectMode(engine, InputMode::Phonetic, "k", "ක්");
+  expectMode(engine, InputMode::Phonetic, "kii", "කී");
   expectMode(engine, InputMode::Phonetic, "kramaya", "ක්‍රමය");
   expectMode(engine, InputMode::Phonetic, "priya", "ප්‍රිය");
   expectMode(engine, InputMode::SmartPhonetic, "Aa", "ඈ");
@@ -85,6 +88,14 @@ int main() {
   expect("kombuva-long", akshara::unicode::normalizeWijesekara(u"ෙකා්"), u"කෝ");
   expect("double-kombuva", akshara::unicode::normalizeWijesekara(u"ෙෙක"), u"කෛ");
   expect("independent-aa", akshara::unicode::normalizeWijesekara(u"අා"), u"ආ");
+  expect("independent-ae", akshara::unicode::normalizeWijesekara(u"අැ"), u"ඇ");
+  expect("independent-aee", akshara::unicode::normalizeWijesekara(u"අෑ"), u"ඈ");
+  expect("independent-ii", akshara::unicode::normalizeWijesekara(u"ඉී"), u"ඊ");
+  expect("independent-uu", akshara::unicode::normalizeWijesekara(u"උූ"), u"ඌ");
+  expect("independent-ee", akshara::unicode::normalizeWijesekara(u"එ්"), u"ඒ");
+  expect("independent-ai", akshara::unicode::normalizeWijesekara(u"ෙඑ"), u"ඓ");
+  expect("independent-oo", akshara::unicode::normalizeWijesekara(u"ඔ්"), u"ඕ");
+  expect("independent-au", akshara::unicode::normalizeWijesekara(u"ඔෟ"), u"ඖ");
   expect("gayanukitta", akshara::unicode::normalizeWijesekara(u"ගෘෘ"), u"ගෲ");
   expect("rakaransaya", akshara::unicode::normalizeWijesekara(u"ක\uE004"), u"ක්‍ර");
   expect("yansaya", akshara::unicode::normalizeWijesekara(u"ක\uE005"), u"ක්‍ය");
@@ -98,6 +109,12 @@ int main() {
   expect("key-altgr", engine.mapWijesekaraKey({0x4F, false, true}), u"ඳ");
   expect("key-oem", engine.mapWijesekaraKey({0xDE, false, false}), u".");
   expect("key-zwnj", engine.mapWijesekaraKey({0x20, false, true}), u"‌");
+  expect("key-altgr-ga", engine.mapWijesekaraKey({0xBE, false, true}), u"ඟ");
+  expect("key-altgr-da", engine.mapWijesekaraKey({0x56, false, true}), u"ඬ");
+  expect("key-altgr-ja", engine.mapWijesekaraKey({0x43, false, true}), u"ඦ");
+  expect("key-altgr-visarga", engine.mapWijesekaraKey({0x58, false, true}), u"ඃ");
+  expect("key-altgr-kunddaliya", engine.mapWijesekaraKey({0xDE, false, true}), u"෴");
+  expect("key-altgr-vowel", engine.mapWijesekaraKey({0xBC, false, true}), u"ඏ");
   expect("key-shift-bracket", engine.mapWijesekaraKey({0xDB, true, false}), u"ඥ");
 
   akshara::CompositionBuffer buffer(InputMode::Phonetic);

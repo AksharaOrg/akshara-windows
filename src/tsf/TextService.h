@@ -6,6 +6,7 @@
 #include <msctf.h>
 #include <atomic>
 #include <optional>
+#include <string_view>
 
 // Minimal composition-only TIP, following the relevant SampleIME interfaces.
 class TextService final : public ITfTextInputProcessorEx,
@@ -40,7 +41,7 @@ class TextService final : public ITfTextInputProcessorEx,
   STDMETHODIMP OnKeyUp(WPARAM, LPARAM, BOOL*) override;
   STDMETHODIMP OnCompositionTerminated(TfEditCookie, ITfComposition*) override;
   STDMETHODIMP OnActivated(REFCLSID, REFGUID, BOOL) override;
-  HRESULT ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commit);
+  HRESULT ApplyEdit(ITfContext* context, TfEditCookie cookie, bool commit, std::u16string_view commitSuffix = {});
 
  private:
   HRESULT AdviseSinks();
@@ -57,7 +58,7 @@ class TextService final : public ITfTextInputProcessorEx,
   bool IsHandledKey(WPARAM key) const;
   bool HandleKey(ITfContext* context, WPARAM key);
   bool ShouldCommitOnBoundary(WPARAM key) const;
-  HRESULT RequestEdit(ITfContext* context, bool commit);
+  HRESULT RequestEdit(ITfContext* context, bool commit, std::u16string_view commitSuffix = {});
   void ResetComposition();
   void SelectProfile(REFGUID profile);
   std::atomic<ULONG> refs_{1};

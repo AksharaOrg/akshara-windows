@@ -1,12 +1,13 @@
 #pragma once
 #include <windows.h>
 #include <msctf.h>
+#include <string>
 
 class TextService;
 
 class EditSession final : public ITfEditSession {
  public:
-  EditSession(TextService* service, ITfContext* context, bool commitOnly);
+  EditSession(TextService* service, ITfContext* context, bool commitOnly, std::u16string commitSuffix = {});
   ~EditSession();
   STDMETHODIMP QueryInterface(REFIID riid, void** object) override;
   STDMETHODIMP_(ULONG) AddRef() override;
@@ -17,4 +18,5 @@ class EditSession final : public ITfEditSession {
   TextService* service_;
   ITfContext* context_;
   bool commitOnly_;
+  std::u16string commitSuffix_;
 };

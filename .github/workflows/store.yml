@@ -16,6 +16,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: microsoft/microsoft-store-apppublisher@v1.1
+      - name: Validate Partner Center configuration
+        shell: pwsh
+        env:
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          SELLER_ID: ${{ secrets.SELLER_ID }}
+          AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          AZURE_AD_APPLICATION_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+          MICROSOFT_STORE_PRODUCT_ID: ${{ vars.MICROSOFT_STORE_PRODUCT_ID }}
+        run: |
+          $required = @('AZURE_AD_TENANT_ID','SELLER_ID','AZURE_AD_APPLICATION_CLIENT_ID','AZURE_AD_APPLICATION_SECRET','MICROSOFT_STORE_PRODUCT_ID')
+          $missing = $required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+          if ($missing) { throw "Missing Microsoft Store configuration: $($missing -join ', ')" }
       - id: tag
         shell: pwsh
         run: |
@@ -54,4 +66,3 @@ jobs:
           $json = $package | ConvertTo-Json -Depth 20 -Compress
           msstore submission update '${{ vars.MICROSOFT_STORE_PRODUCT_ID }}' $json
           msstore submission publish '${{ vars.MICROSOFT_STORE_PRODUCT_ID }}'
-
