@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Akshara Settings: a WinUI 3 app, unpackaged and self-contained (the .NET runtime and the Windows App SDK
+       ship inside its folder), so users need no prerequisites. Published by tools/build-settings.ps1. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Akshara.Settings</RootNamespace>
+    <AssemblyName>AksharaSettings</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\windows\Akshara.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- Generates and publishes the app's resources.pri (compiled XAML) even though the app is unpackaged. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version Condition="'$(Version)' == ''">0.0.6</Version>
+    <Company>AksharaOrg</Company>
+    <Product>Akshara</Product>
+    <Description>Akshara Settings</Description>
+    <Copyright>Copyright (c) 2026 Akshara contributors</Copyright>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- Publish only. Restore must see these too (the trimmer is a restored pack), so no configuration condition. -->
+  <PropertyGroup>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <!-- Settings uses WinUI only: leave out the AI, ML, Search and Widgets runtimes the metapackage brings, about
+         60 MB of onnxruntime, DirectML and friends. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" Version="2.5.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.0.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\assets\windows\Akshara.ico" Link="Assets\Akshara.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\windows\Square150x150Logo.png" Link="Assets\Logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Settings → About → People: shared with Android and macOS (akshara-phonetics/tools/sync_word_data.py). -->
+    <Content Include="..\..\data\contributors.json" Link="contributors.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

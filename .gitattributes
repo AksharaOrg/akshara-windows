@@ -1,0 +1,3 @@
+# Word data and golden fixtures are copied byte for byte from akshara-android by akshara-phonetics tools.
+*.tsv text eol=lf
+data/** text eol=lf

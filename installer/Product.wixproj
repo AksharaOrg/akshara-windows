@@ -4,6 +4,10 @@
     <Platform>x64</Platform>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <DefineConstants>$(DefineConstants);Version=$(Version);PayloadRoot=$(PayloadRoot)</DefineConstants>
+    <!-- Microsoft.ui.xaml.dll and Microsoft.UI.Xaml.Phone.dll (Akshara Settings) list about 85 languages in their
+         version resources, more than the File table's Language column validates. It only matters when comparing
+         two copies of the same version, so this check alone is skipped; every other ICE still runs. -->
+    <SuppressIces>ICE03</SuppressIces>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Product.wxs" />

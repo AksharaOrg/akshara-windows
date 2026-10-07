@@ -55,6 +55,12 @@ jobs:
           cmake --build --preset windows-x86
           cmake --preset windows-x64 "-DAKSHARA_VERSION=${{ steps.version.outputs.version }}"
           cmake --build --preset windows-x64
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build Akshara Settings
+        shell: pwsh
+        run: ./tools/build-settings.ps1 -Version ${{ steps.version.outputs.version }}
       - name: Compile-check ARM64
         run: cmake --preset windows-arm64 "-DAKSHARA_VERSION=${{ steps.version.outputs.version }}" && cmake --build --preset windows-arm64
       - name: Test both runnable architectures
@@ -65,9 +71,11 @@ jobs:
       - name: Stage unsigned PE payloads
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force stage/unsigned/x86,stage/unsigned/x64 | Out-Null
+          New-Item -ItemType Directory -Force stage/unsigned/x86,stage/unsigned/x64,stage/unsigned/settings | Out-Null
           Copy-Item build/x86/Release/AksharaIME.dll,build/x86/Release/AksharaRegister.exe stage/unsigned/x86/
-          Copy-Item build/x64/Release/AksharaIME.dll,build/x64/Release/AksharaRegister.exe,build/x64/Release/AksharaSettings.exe stage/unsigned/x64/
+          Copy-Item build/x64/Release/AksharaIME.dll,build/x64/Release/AksharaRegister.exe stage/unsigned/x64/
+          # Only Akshara's own code is signed; the runtime files in the Settings folder are already Microsoft-signed.
+          Copy-Item build/settings-publish/AksharaSettings.exe,build/settings-publish/AksharaSettings.dll stage/unsigned/settings/
       - id: unsigned-pe
         uses: actions/upload-artifact@v7
         with:
@@ -92,6 +100,8 @@ jobs:
       - name: Build MSI from signed payloads
         shell: pwsh
         run: |
+          # The rest of Akshara Settings' folder, around its signed exe and dll.
+          Copy-Item build/settings-publish/* stage/signed/settings/ -Recurse -Exclude AksharaSettings.exe,AksharaSettings.dll
           New-Item -ItemType Directory -Force dist/msi | Out-Null
           dotnet build installer/Product.wixproj -c Release -p:Version=${{ steps.version.outputs.version }} -p:AcceptEula=$env:WIX_ACCEPT_EULA -p:PayloadRoot="${{ github.workspace }}\stage\signed" -o dist/msi
           $msi = Get-ChildItem dist/msi/*.msi | Select-Object -First 1

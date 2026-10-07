@@ -39,6 +39,20 @@ cmake --build --preset windows-x64
 ctest --test-dir build/x64 -C Release --output-on-failure
 ```
 
+Akshara Settings is a WinUI 3 app in C# (`src/settings`), published self-contained so users need no runtime. It needs the .NET 10 SDK:
+
+```powershell
+./tools/build-settings.ps1 -Version 0.1.0
+```
+
+### Smart Phonetic v2
+
+`src/core/SmartPhoneticV2.cpp` and `SoundLexicon.cpp` port `to_sinhala()` and the sound-alike lexicon from the
+[Sinhala-Phonetic-Orthography](https://github.com/SrilalS/Sinhala-Phonetic-Orthography) research repo, which
+is the source of truth for the rules. Change the research repo first, then port. `ctest` checks the port against
+`tests/fixtures/smart_phonetic_v2_golden.tsv`, line by line. The golden file and the word list in `data/` are
+generated, not edited here: run `sync_word_data.py` and `build_golden.py` from `akshara-phonetics/tools`.
+
 Use `windows-x86` for 32-bit binaries and `windows-arm64` for compile validation. Release artifacts are built, signed, smoke-tested, and published only by the tag workflow. WiX Toolset 7.0.0 is pinned through its MSBuild SDK.
 
 The release installer supports interactive use and silent Store use:

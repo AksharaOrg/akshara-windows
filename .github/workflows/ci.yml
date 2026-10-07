@@ -53,12 +53,19 @@ jobs:
         run: |
           cmake --preset windows-x64 "-DAKSHARA_VERSION=0.1.0"
           cmake --build --preset windows-x64
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build Akshara Settings
+        shell: pwsh
+        run: ./tools/build-settings.ps1 -Version 0.1.0
       - name: Stage installer payload
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force build/payload/x86, build/payload/x64
           Copy-Item build/x86/Release/AksharaIME.dll, build/x86/Release/AksharaRegister.exe build/payload/x86/
-          Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe, build/x64/Release/AksharaSettings.exe build/payload/x64/
+          Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe build/payload/x64/
+          Copy-Item build/settings-publish build/payload/settings -Recurse
       - name: Build unsigned MSI and offline setup
         shell: pwsh
         run: |
