@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Akshara.Settings.Pages.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+    <ScrollViewer>
+        <StackPanel MaxWidth="1000" Padding="36,8,36,36" Spacing="{StaticResource SettingsCardSpacing}">
+            <TextBlock Style="{StaticResource PageTitleStyle}" Text="About" />
+
+            <toolkit:SettingsCard x:Name="VersionCard" Description="Made in Sri Lanka by the Akshara contributors." Header="Akshara for Windows">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <ImageIcon Source="ms-appx:///Assets/Logo.png" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <TextBlock x:Name="VersionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" />
+            </toolkit:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="People" />
+            <StackPanel x:Name="People" Spacing="{StaticResource SettingsCardSpacing}" />
+            <toolkit:SettingsCard Click="OnGitHubClick" Description="Report issues, suggest words or send a pull request. Thank you also to everyone who tests builds and shares feedback." Header="Contribute on GitHub" IsClickEnabled="True">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE943;" /></toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.ActionIcon><FontIcon Glyph="&#xE8A7;" /></toolkit:SettingsCard.ActionIcon>
+            </toolkit:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Legal" />
+            <toolkit:SettingsCard Click="OnPrivacyClick" Description="Typing stays on this PC." Header="Privacy policy" IsClickEnabled="True">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE72E;" /></toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Click="OnNoticesClick" Description="Spelling research, the word list and their licenses." Header="Open source notices" IsClickEnabled="True">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE8A5;" /></toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Description="Copyright (c) 2026 Akshara contributors" Header="License">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE8D7;" /></toolkit:SettingsCard.HeaderIcon>
+                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="MIT License" />
+            </toolkit:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Reset" />
+            <toolkit:SettingsCard Description="Restore typing and correction options to their defaults." Header="Reset settings">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE777;" /></toolkit:SettingsCard.HeaderIcon>
+                <Button Click="OnResetClick" Content="Reset" MinWidth="96" />
+            </toolkit:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -27,13 +27,20 @@
       <Component Directory="X64DIR" Id="X64Tip" Guid="A64D534D-51D5-443E-87DE-7302466250E8" Bitness="always64">
         <File Id="X64Dll" Source="$(var.PayloadRoot)\x64\AksharaIME.dll" KeyPath="yes" />
         <File Id="X64Register" Source="$(var.PayloadRoot)\x64\AksharaRegister.exe" />
+        <!-- Smart Phonetic's word list, read by the DLL beside it. Data, not code, so it comes from the repo. -->
+        <File Id="X64WordList" Source="..\data\sinhala_frequency_model.tsv" />
+        <File Id="X64WordListNotice" Source="..\data\sinhalafrequencymodel_attribution.md" />
       </Component>
       <Component Directory="X86DIR" Id="X86Tip" Guid="8FFB882F-6BF5-4FCE-904C-A1041F82D290" Bitness="always32">
         <File Id="X86Dll" Source="$(var.PayloadRoot)\x86\AksharaIME.dll" KeyPath="yes" />
         <File Id="X86Register" Source="$(var.PayloadRoot)\x86\AksharaRegister.exe" />
+        <File Id="X86WordList" Source="..\data\sinhala_frequency_model.tsv" />
+        <File Id="X86WordListNotice" Source="..\data\sinhalafrequencymodel_attribution.md" />
       </Component>
       <Component Directory="SETTINGSDIR" Id="SettingsApp" Guid="9150B4DB-B2C0-44A0-9DD6-0DF08B7D1FF8" Bitness="always64">
-        <File Id="SettingsExe" Source="$(var.PayloadRoot)\x64\AksharaSettings.exe" KeyPath="yes">
+        <!-- Akshara Settings is a self-contained WinUI 3 app (tools/build-settings.ps1): the exe here, and the
+             rest of its folder (the .NET runtime and the Windows App SDK) from the Files below. -->
+        <File Id="SettingsExe" Source="$(var.PayloadRoot)\settings\AksharaSettings.exe" KeyPath="yes">
           <Shortcut Id="SettingsShortcut" Directory="MenuDir" Name="Akshara" WorkingDirectory="SETTINGSDIR" Advertise="yes" />
         </File>
         <RemoveFolder Id="RemoveMenuDir" Directory="MenuDir" On="uninstall" />
@@ -43,6 +50,9 @@
         <RemoveFolder Id="RemoveLegacyHelpDirectory" Directory="LEGACYHELPDIR" On="install" />
         <RemoveFile Id="RemoveLegacyHelpShortcut" Directory="MenuDir" Name="Akshara Help.lnk" On="install" />
       </Component>
+      <Files Directory="SETTINGSDIR" Include="$(var.PayloadRoot)\settings\**">
+        <Exclude Files="$(var.PayloadRoot)\settings\AksharaSettings.exe" />
+      </Files>
     </ComponentGroup>
 
     <CustomAction Id="RegisterX64" FileRef="X64Register" ExeCommand='install &quot;[X64DIR]AksharaIME.dll&quot;' Execute="deferred" Impersonate="no" Return="check" />

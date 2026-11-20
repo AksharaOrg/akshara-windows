@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Akshara.Settings.Pages.TypingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+    <ScrollViewer>
+        <StackPanel MaxWidth="1000" Padding="36,8,36,36" Spacing="{StaticResource SettingsCardSpacing}">
+            <TextBlock Style="{StaticResource PageTitleStyle}" Text="Typing" />
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Smart Phonetic" />
+            <toolkit:SettingsExpander
+                x:Name="GrammarCard"
+                Description="Spells by the rules of Sinhala orthography. Space picks the dictionary spelling (honda → හොඳ), and Backspace right after puts back what you typed. Turn off for the classic Smart Phonetic."
+                Header="Grammar-correct Smart Phonetic"
+                IsExpanded="True">
+                <toolkit:SettingsExpander.HeaderIcon><FontIcon Glyph="&#xE8D2;" /></toolkit:SettingsExpander.HeaderIcon>
+                <ToggleSwitch x:Name="GrammarToggle" Toggled="OnToggled" Tag="SmartPhoneticV2" />
+                <toolkit:SettingsExpander.Items>
+                    <toolkit:SettingsCard Description="On: d types ඩ and dh types ද, as on older Singlish keyboards (D ඪ, Dh ධ). Off: d types ද, dh ධ, D ඩ." Header="Type ඩ with d">
+                        <ToggleSwitch x:Name="RetroflexDToggle" Toggled="OnToggled" Tag="SmartPhoneticV2RetroflexD" />
+                    </toolkit:SettingsCard>
+                    <toolkit:SettingsCard Description="C + r + u as rakaransaya + ු (ක්‍රූර) instead of the usual ෘ / ෲ (කෲර)." Header="Write kruura as ක්‍රූර">
+                        <ToggleSwitch x:Name="RakaransayaUToggle" Toggled="OnToggled" Tag="SmartPhoneticV2RakaransayaU" />
+                    </toolkit:SettingsCard>
+                    <toolkit:SettingsCard Description="karma types කර්‍ම (repaya joined with ZWJ) instead of plain කර්ම." Header="Joined repaya">
+                        <ToggleSwitch x:Name="RepayaZwjToggle" Toggled="OnToggled" Tag="SmartPhoneticV2RepayaZwj" />
+                    </toolkit:SettingsCard>
+                    <toolkit:SettingsCard Description="Join the 13 bandi akuru pairs with ZWJ: akShara types අක්‍ෂර, ananda types අනන්‍ද." Header="Classical conjuncts">
+                        <ToggleSwitch x:Name="ClassicalToggle" Toggled="OnToggled" Tag="SmartPhoneticV2Classical" />
+                    </toolkit:SettingsCard>
+                    <toolkit:SettingsCard Description="Allow ඏ ඐ ෟ ෳ ඎ ඦ and the candrabindu (~n), and + for touching letters." Header="Archaic letters">
+                        <ToggleSwitch x:Name="ArchaicToggle" Toggled="OnToggled" Tag="SmartPhoneticV2Archaic" />
+                    </toolkit:SettingsCard>
+                    <toolkit:SettingsCard ContentAlignment="Left">
+                        <HyperlinkButton Click="OnRomanizationClick" Content="How grammar-correct spelling works" />
+                    </toolkit:SettingsCard>
+                </toolkit:SettingsExpander.Items>
+            </toolkit:SettingsExpander>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Text correction" />
+            <toolkit:SettingsCard Description="Two quick Spaces after a word type a full stop and a space." Header="Double-space period">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE75D;" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="DoubleSpaceToggle" Toggled="OnToggled" Tag="DoubleSpacePeriod" />
+            </toolkit:SettingsCard>
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Finishing a word" />
+            <toolkit:SettingsCard Description="Finish the word before . , ; / and quotes." Header="Commit on punctuation">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE8C1;" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="PunctuationToggle" Toggled="OnToggled" Tag="CommitOnPunctuation" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Description="Finish the word before a new line." Header="Commit on Enter">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE751;" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="EnterToggle" Toggled="OnToggled" Tag="CommitOnEnter" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Description="Finish the word before Tab moves the focus." Header="Commit on Tab">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7FD;" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="TabToggle" Toggled="OnToggled" Tag="CommitOnTab" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Description="Finish the word when the arrow keys, Home, End or Page keys move the cursor." Header="Commit on cursor movement">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE8B0;" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="CursorToggle" Toggled="OnToggled" Tag="CommitOnCursorMovement" />
+            </toolkit:SettingsCard>
+
+            <TextBlock Margin="1,16,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" Text="Changes apply the next time you switch to an app." />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

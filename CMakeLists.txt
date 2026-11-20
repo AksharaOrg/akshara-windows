@@ -23,12 +23,15 @@ if(MSVC)
 endif()
 
 option(AKSHARA_BUILD_TESTS "Build portable core tests" ON)
-option(AKSHARA_BUILD_WINDOWS_COMPONENTS "Build TSF and Settings executables" ${WIN32})
+option(AKSHARA_BUILD_WINDOWS_COMPONENTS "Build the TSF DLL and setup helper" ${WIN32})
 
 add_library(akshara_core STATIC
   src/core/AksharaEngine.cpp
   src/core/MappingTrie.cpp
-  src/core/SinhalaUnicode.cpp)
+  src/core/SinhalaUnicode.cpp
+  src/core/SmartPhoneticV2.cpp
+  src/core/SoundLexicon.cpp
+  src/core/SmartPhoneticService.cpp)
 target_include_directories(akshara_core PUBLIC src/core)
 if(MSVC)
   target_compile_options(akshara_core PRIVATE /W4 /WX /permissive- /sdl /guard:cf)
@@ -42,22 +45,29 @@ if(AKSHARA_BUILD_TESTS)
   target_link_libraries(akshara_core_tests PRIVATE akshara_core)
   target_compile_definitions(akshara_core_tests PRIVATE AKSHARA_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
   add_test(NAME akshara-core COMMAND akshara_core_tests)
+
+  # Smart Phonetic v2 against the research repo's reference (tests/fixtures/smart_phonetic_v2_golden.tsv).
+  add_executable(akshara_smart_phonetic_v2_tests tests/core/SmartPhoneticV2Tests.cpp)
+  target_link_libraries(akshara_smart_phonetic_v2_tests PRIVATE akshara_core)
+  target_compile_definitions(akshara_smart_phonetic_v2_tests PRIVATE AKSHARA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+  add_test(NAME akshara-smart-phonetic-v2 COMMAND akshara_smart_phonetic_v2_tests)
 endif()
 
 if(WIN32 AND AKSHARA_BUILD_WINDOWS_COMPONENTS)
   add_library(AksharaIME SHARED
     src/tsf/dllmain.cpp src/tsf/Module.cpp src/tsf/TextService.cpp
-    src/tsf/EditSession.cpp src/tsf/Registration.cpp src/tsf/AksharaIME.rc src/tsf/AksharaIME.def)
+    src/tsf/EditSession.cpp src/tsf/Registration.cpp src/tsf/DisplayAttribute.cpp src/tsf/WordList.cpp
+    src/tsf/AksharaIME.rc src/tsf/AksharaIME.def)
   target_link_libraries(AksharaIME PRIVATE akshara_core ole32 oleaut32 advapi32 uuid)
   target_compile_definitions(AksharaIME PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
   target_compile_options(AksharaIME PRIVATE /W4 /WX /permissive- /sdl /guard:cf)
   target_link_options(AksharaIME PRIVATE /DYNAMICBASE /NXCOMPAT /GUARD:CF)
+  # Smart Phonetic v2's word list is installed next to the DLL (WordList.cpp); copy it there for local runs.
+  add_custom_command(TARGET AksharaIME POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_CURRENT_SOURCE_DIR}/data/sinhala_frequency_model.tsv $<TARGET_FILE_DIR:AksharaIME>)
 
-  add_executable(AksharaSettings WIN32 src/settings/main.cpp src/settings/AksharaSettings.rc)
-  target_compile_definitions(AksharaSettings PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-  target_compile_options(AksharaSettings PRIVATE /W4 /WX /permissive- /sdl /guard:cf)
-  target_link_options(AksharaSettings PRIVATE /DYNAMICBASE /NXCOMPAT /GUARD:CF)
-  target_link_libraries(AksharaSettings PRIVATE ole32 shell32 advapi32 uuid)
+  # Akshara Settings is a WinUI 3 app (src/settings/AksharaSettings.csproj), published by tools/build-settings.ps1.
 
   add_executable(AksharaRegister src/setup-helper/main.cpp)
   target_compile_definitions(AksharaRegister PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)

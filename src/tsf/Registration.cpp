@@ -44,8 +44,9 @@ HRESULT RegisterCategories(bool add) {
   // This is the capability set used by Microsoft's current SampleIME, less
   // UI-element support because Akshara has no candidate UI to advertise.
   // Do not add a category unless the implementation provides that capability.
-  constexpr std::array<const GUID*, 6> values{
+  constexpr std::array<const GUID*, 7> values{
       &GUID_TFCAT_TIP_KEYBOARD,
+      &GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
       &GUID_TFCAT_TIPCAP_SECUREMODE,
       &GUID_TFCAT_TIPCAP_COMLESS,
       &GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT,

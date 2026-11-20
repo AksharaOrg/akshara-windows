@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Akshara.Settings.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
+    <ScrollViewer>
+        <StackPanel MaxWidth="1000" Padding="36,8,36,36" Spacing="{StaticResource SettingsCardSpacing}">
+            <Grid Margin="0,0,0,20" ColumnSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image Width="72" Height="72" Source="ms-appx:///Assets/Logo.png" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource TitleLargeTextBlockStyle}" Text="Akshara" />
+                    <TextBlock x:Name="Subtitle" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+
+            <InfoBar x:Name="Status" IsClosable="False" IsOpen="True" />
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Input methods" />
+            <StackPanel x:Name="ProfileCards" Spacing="{StaticResource SettingsCardSpacing}" />
+
+            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Get started" />
+            <toolkit:SettingsCard Description="Windows + Space switches between your keyboards and input methods." Header="Switch to Akshara">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE92E;" /></toolkit:SettingsCard.HeaderIcon>
+                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Windows + Space" />
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Click="OnGuideClick" Description="Vowels, consonants, signs and joined letters, with examples." Header="Smart Phonetic typing guide" IsClickEnabled="True">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE82D;" /></toolkit:SettingsCard.HeaderIcon>
+            </toolkit:SettingsCard>
+            <toolkit:SettingsCard Click="OnLanguageSettingsClick" Description="Add, remove or reorder input methods in Windows." Header="Language &amp; region settings" IsClickEnabled="True">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xF2B7;" /></toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.ActionIcon><FontIcon Glyph="&#xE8A7;" /></toolkit:SettingsCard.ActionIcon>
+            </toolkit:SettingsCard>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

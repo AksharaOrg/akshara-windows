@@ -18,11 +18,14 @@ try {
   cmake --build --preset windows-x86
   cmake --preset windows-x64 "-DAKSHARA_VERSION=$Version"
   cmake --build --preset windows-x64
+  & "$PSScriptRoot/build-settings.ps1" -Version $Version -OutputDirectory build/settings-publish
 
   $payloadRoot = Join-Path $repositoryRoot 'build/payload'
   New-Item -ItemType Directory -Force "$payloadRoot/x86", "$payloadRoot/x64" | Out-Null
   Copy-Item build/x86/Release/AksharaIME.dll, build/x86/Release/AksharaRegister.exe "$payloadRoot/x86/" -Force
-  Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe, build/x64/Release/AksharaSettings.exe "$payloadRoot/x64/" -Force
+  Copy-Item build/x64/Release/AksharaIME.dll, build/x64/Release/AksharaRegister.exe "$payloadRoot/x64/" -Force
+  if (Test-Path "$payloadRoot/settings") { Remove-Item -Recurse -Force "$payloadRoot/settings" }
+  Copy-Item build/settings-publish "$payloadRoot/settings" -Recurse
 
   $outputPath = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $repositoryRoot $OutputDirectory }
   $resolvedOutput = [IO.Path]::GetFullPath($outputPath)

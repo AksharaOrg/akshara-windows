@@ -12,6 +12,17 @@ struct Values {
   bool commitOnEnter{true};
   bool commitOnTab{true};
   bool commitOnCursorMovement{true};
+  // Grammar-correct Smart Phonetic (v2), on by default; off types the classic Smart Phonetic.
+  bool smartPhoneticV2{true};
+  // v2's spelling options (SmartPhoneticOptions), all off by default.
+  bool v2Archaic{};
+  bool v2RepayaZwj{};
+  bool v2Classical{};
+  bool v2RakaransayaU{};
+  // Off: d types ද, dh ධ, D ඩ. On: the older keyboard convention, d types ඩ and dh ද.
+  bool v2RetroflexD{};
+  // Two Spaces in quick succession type ". ".
+  bool doubleSpacePeriod{true};
 };
 
 struct Item { const wchar_t* name; const wchar_t* title; const wchar_t* description; bool Values::*member; };
@@ -20,6 +31,13 @@ inline constexpr Item kItems[] = {
   {L"CommitOnEnter", L"Commit on Enter", L"Finish composition before a new line.", &Values::commitOnEnter},
   {L"CommitOnTab", L"Commit on Tab", L"Finish composition before moving focus.", &Values::commitOnTab},
   {L"CommitOnCursorMovement", L"Commit on cursor movement", L"Finish composition when moving the caret.", &Values::commitOnCursorMovement},
+  {L"SmartPhoneticV2", L"Grammar-correct Smart Phonetic", L"Spell by the Sinhala rules, and let Space pick the dictionary word.", &Values::smartPhoneticV2},
+  {L"SmartPhoneticV2Archaic", L"Archaic letters", L"Type the old letters with ~ (~l, ~ll, ~n) and join touching letters with +.", &Values::v2Archaic},
+  {L"SmartPhoneticV2RepayaZwj", L"Joined repaya", L"Write repaya with a joiner, as in older text.", &Values::v2RepayaZwj},
+  {L"SmartPhoneticV2Classical", L"Classical conjuncts", L"Join the classical bandi akuru pairs.", &Values::v2Classical},
+  {L"SmartPhoneticV2RakaransayaU", L"Rakaransaya for ru", L"Write kru as rakaransaya with a u sign instead of the gaetta-pilla.", &Values::v2RakaransayaU},
+  {L"SmartPhoneticV2RetroflexD", L"Type ඩ with d", L"d types ඩ and dh types ද, as on older Singlish keyboards.", &Values::v2RetroflexD},
+  {L"DoubleSpacePeriod", L"Double-space period", L"Two quick Spaces type a full stop and a space.", &Values::doubleSpacePeriod},
 };
 
 inline Values Load() {
